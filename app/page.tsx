@@ -185,7 +185,11 @@ export default function Home() {
           <StrategyConfigurator
             params={params}
             onAddStrategy={addStrategy}
-            onRunBacktest={async () => { await run(); setTab('results'); }}
+            onRunBacktest={async (strategy) => {
+              addStrategy(strategy);
+              await run([...strategies, strategy]);
+              setTab('results');
+            }}
             onGoToConfig={() => setTab('config')}
           />
         )}

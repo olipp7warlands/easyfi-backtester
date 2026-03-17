@@ -263,9 +263,22 @@ export default function SummaryCards({ results, candles, capital }: Props) {
             </div>
 
             {/* P3: "Ver más" button at the bottom of the card */}
-            <div className="border-t border-[#1a1a1a]">
+            <div className="px-4 mt-3 pt-3 pb-4 border-t border-[#1a1a1a]">
               <button
-                className="w-full px-4 py-2 text-xs font-mono text-[#555] hover:text-[#888] hover:bg-[#111] transition-colors flex items-center justify-center gap-1.5"
+                className="w-full py-2 px-4 rounded-md font-mono font-bold text-[11px] uppercase tracking-wider cursor-pointer transition-all text-center"
+                style={{
+                  color: '#c8f135',
+                  backgroundColor: '#161f04',
+                  border: '1px solid #2d3a0f',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#1d2a08';
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#c8f13566';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#161f04';
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#2d3a0f';
+                }}
                 onClick={() => setOpenId(openId === strategy.id ? null : strategy.id)}
               >
                 {isOpen ? 'Ver menos ▲' : 'Ver más ▼'}

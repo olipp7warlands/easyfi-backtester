@@ -32,15 +32,16 @@ export function useBacktest() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (overrideStrategies?: Strategy[]) => {
     setIsLoading(true);
     setError(null);
     try {
+      const strats = overrideStrategies ?? strategies;
       const fetched = await fetchCandles(params.symbol, params.days);
       const interval = getInterval(params.days);
       const hoursPerCandle = getHoursPerCandle(interval);
       const { results: r, entryPrice: ep, currentPrice: cp } = runBacktest(
-        strategies, fetched, params, hoursPerCandle,
+        strats, fetched, params, hoursPerCandle,
       );
       setCandles(fetched);
       setResults(r);

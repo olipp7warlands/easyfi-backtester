@@ -20,7 +20,7 @@ import type {
 interface Props {
   params: BacktestParams;
   onAddStrategy: (s: Strategy) => void;
-  onRunBacktest: () => void;
+  onRunBacktest: (strategy: Strategy) => void;
   onGoToConfig: () => void;
 }
 
@@ -316,15 +316,22 @@ export default function StrategyConfigurator({
 
   const nameValid = strategyName.trim().length >= 3;
 
+  function buildStrategy(): Strategy {
+    return {
+      ...selected!.strategy,
+      id: Date.now().toString(36),
+      name: strategyName.trim(),
+    };
+  }
+
   function handleRunBacktest() {
     if (!selected || !nameValid) return;
-    onAddStrategy({ ...selected.strategy, name: strategyName.trim() });
-    onRunBacktest();
+    onRunBacktest(buildStrategy());
   }
 
   function handleGoToConfig() {
     if (!selected || !nameValid) return;
-    onAddStrategy({ ...selected.strategy, name: strategyName.trim() });
+    onAddStrategy(buildStrategy());
     onGoToConfig();
   }
 
