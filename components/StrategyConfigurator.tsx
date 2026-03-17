@@ -6,7 +6,7 @@ import {
   ComposedChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ReferenceLine, ReferenceArea, ResponsiveContainer,
 } from 'recharts';
-import { Button, Badge } from './ui';
+import { Button, Badge, Input, FieldLabel } from './ui';
 import { recommendStrategies } from '@/lib/recommend';
 import { fetchCandles } from '@/lib/binance';
 import { fmtDate, fmtPrice, fmtUSD } from '@/lib/format';
@@ -292,6 +292,7 @@ export default function StrategyConfigurator({
   const [selected, setSelected] = useState<RecommendedStrategy | null>(null);
   const [previewCandles, setPreviewCandles] = useState<Candle[]>([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [strategyName, setStrategyName] = useState('');
 
   const complete = !!(profile.network && profile.timeHorizon && profile.preference && profile.volatility);
 
@@ -303,6 +304,7 @@ export default function StrategyConfigurator({
 
   async function selectRec(rec: RecommendedStrategy) {
     setSelected(rec);
+    setStrategyName(rec.strategy.name);
     setStep(3);
     setLoadingPreview(true);
     try {
@@ -312,15 +314,17 @@ export default function StrategyConfigurator({
     finally { setLoadingPreview(false); }
   }
 
+  const nameValid = strategyName.trim().length >= 3;
+
   function handleRunBacktest() {
-    if (!selected) return;
-    onAddStrategy(selected.strategy);
+    if (!selected || !nameValid) return;
+    onAddStrategy({ ...selected.strategy, name: strategyName.trim() });
     onRunBacktest();
   }
 
   function handleGoToConfig() {
-    if (!selected) return;
-    onAddStrategy(selected.strategy);
+    if (!selected || !nameValid) return;
+    onAddStrategy({ ...selected.strategy, name: strategyName.trim() });
     onGoToConfig();
   }
 
@@ -522,12 +526,44 @@ export default function StrategyConfigurator({
                 </ul>
               </div>
 
+              {/* Strategy name */}
+              <div className="bg-[#111] border border-[#222] rounded-lg p-4">
+                <FieldLabel>Nombre de la estrategia</FieldLabel>
+                <Input
+                  value={strategyName}
+                  onChange={setStrategyName}
+                  placeholder="e.g. Mi ETH Wide Range"
+                />
+                {!nameValid && strategyName.length > 0 && (
+                  <div className="text-[10px] font-mono text-[#ff8c42] mt-1">
+                    Mínimo 3 caracteres
+                  </div>
+                )}
+                {!nameValid && strategyName.length === 0 && (
+                  <div className="text-[10px] font-mono text-[#444] mt-1">
+                    Dale un nombre para identificar esta estrategia
+                  </div>
+                )}
+              </div>
+
               {/* CTA buttons */}
               <div className="flex flex-col gap-2">
-                <Button variant="primary" size="lg" className="w-full" onClick={handleRunBacktest}>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  onClick={handleRunBacktest}
+                  disabled={!nameValid}
+                >
                   ▶ Ejecutar backtest con esta estrategia
                 </Button>
-                <Button variant="secondary" size="md" className="w-full" onClick={handleGoToConfig}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="w-full"
+                  onClick={handleGoToConfig}
+                  disabled={!nameValid}
+                >
                   Añadir a configuración y revisar
                 </Button>
               </div>

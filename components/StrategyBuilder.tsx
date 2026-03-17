@@ -94,7 +94,13 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
                     <Input
                       value={s.name}
                       onChange={(v) => onUpdate(s.id, { name: v })}
+                      placeholder="e.g. ETH Wide Range"
                     />
+                    {s.name.trim().length < 3 && (
+                      <div className="text-[10px] font-mono text-[#444] mt-1">
+                        Mínimo 3 caracteres para identificar la estrategia
+                      </div>
+                    )}
                   </div>
 
                   {/* Type */}

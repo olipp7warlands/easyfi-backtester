@@ -1,4 +1,4 @@
-import type { Candle, Strategy, SimConfig, SimPoint, Metrics, StratResult, BacktestParams } from '@/types';
+import type { Candle, Strategy, SimConfig, SimPoint, Metrics, StratResult, BacktestParams, RebalanceEvent } from '@/types';
 
 export function calcILFactor(p0: number, p1: number): number {
   if (p0 === 0) return 1;
@@ -40,9 +40,9 @@ export function simulateStrategy(
   candles: Candle[],
   config: SimConfig,
   hoursPerCandle: number,
-): { points: SimPoint[]; entryPrice: number; totalRebalCost: number } {
+): { points: SimPoint[]; entryPrice: number; totalRebalCost: number; rebalanceHistory: RebalanceEvent[] } {
   if (candles.length === 0)
-    return { points: [], entryPrice: 0, totalRebalCost: 0 };
+    return { points: [], entryPrice: 0, totalRebalCost: 0, rebalanceHistory: [] };
 
   const { capital, feeTier, dailyVol, tvl, gasCostPerRebal, slippage, rebalHours } = config;
   const entryPrice = candles[0].close;
@@ -60,7 +60,9 @@ export function simulateStrategy(
   let totalRebalCost = 0;
   let hoursSinceLastRebal = 0;
   let p0 = entryPrice;
+  let rebalCount = 0;
   const points: SimPoint[] = [];
+  const rebalanceHistory: RebalanceEvent[] = [];
 
   for (const candle of candles) {
     const price = candle.close;
@@ -96,13 +98,28 @@ export function simulateStrategy(
     if ((strategy.type === 'dyn' || strategy.type === 'scalp') && !inRange) {
       hoursSinceLastRebal += hoursPerCandle;
       if (hoursSinceLastRebal >= rebalHours) {
+        const prevLo = rangeLo;
+        const prevHi = rangeHi;
         const cost = effectiveCapital * slippage + gasCostPerRebal;
         totalRebalCost += cost;
         effectiveCapital -= cost;
         // Reset range around current price
         const pct = strategy.rangePct / 100;
-        rangeLo = price * (1 - pct);
-        rangeHi = price * (1 + pct);
+        const newLo = price * (1 - pct);
+        const newHi = price * (1 + pct);
+        rebalanceHistory.push({
+          index: rebalCount++,
+          time: candle.time,
+          price,
+          prevLo,
+          prevHi,
+          newLo,
+          newHi,
+          gasCost: cost,
+          feesAtPoint: feesAccum,
+        });
+        rangeLo = newLo;
+        rangeHi = newHi;
         p0 = price;
         hoursSinceLastRebal = 0;
         rebalanced = true;
@@ -115,7 +132,7 @@ export function simulateStrategy(
     points.push({ time: candle.time, price, inRange, feesAccum, dailyFees: feeCandle, marketValue, ilDollar, rebalanced });
   }
 
-  return { points, entryPrice, totalRebalCost };
+  return { points, entryPrice, totalRebalCost, rebalanceHistory };
 }
 
 export function computeMetrics(
@@ -169,11 +186,11 @@ export function runBacktest(
   const currentPrice = candles[candles.length - 1]?.close ?? 0;
 
   const results: StratResult[] = strategies.map((strategy) => {
-    const { points, totalRebalCost } = simulateStrategy(
+    const { points, totalRebalCost, rebalanceHistory } = simulateStrategy(
       strategy, candles, config, hoursPerCandle,
     );
     const metrics = computeMetrics(points, params.capital, params.days, totalRebalCost);
-    return { strategy, points, metrics };
+    return { strategy, points, metrics, rebalanceHistory };
   });
 
   return { results, entryPrice, currentPrice };

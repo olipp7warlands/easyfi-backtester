@@ -53,10 +53,23 @@ export type Metrics = {
   netPnl: number;
 };
 
+export interface RebalanceEvent {
+  index: number;
+  time: number;
+  price: number;
+  prevLo: number;
+  prevHi: number;
+  newLo: number;
+  newHi: number;
+  gasCost: number;
+  feesAtPoint: number;
+}
+
 export type StratResult = {
   strategy: Strategy;
   points: SimPoint[];
   metrics: Metrics;
+  rebalanceHistory: RebalanceEvent[];
 };
 
 export type Network = 'ethereum' | 'arbitrum' | 'base' | 'optimism' | 'polygon';

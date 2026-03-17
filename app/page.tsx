@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import GlobalParams from '@/components/GlobalParams';
 import StrategyBuilder from '@/components/StrategyBuilder';
@@ -17,14 +17,19 @@ import {
 } from '@/components/charts';
 import { Button, SegmentedControl } from '@/components/ui';
 import StrategyConfigurator from '@/components/StrategyConfigurator';
+import AuthModal from '@/components/auth/AuthModal';
+import BacktestHistory from '@/components/BacktestHistory';
 import { useBacktest } from '@/hooks/useBacktest';
+import { useAuth } from '@/hooks/useAuth';
+import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 
 export default function Home() {
-  const [tab, setTab] = useState<'config' | 'results' | 'wizard'>('config');
+  const [tab, setTab] = useState<'config' | 'results' | 'wizard'>('wizard');
   const {
     params,
     strategies,
     results,
+    candles,
     entryPrice,
     currentPrice,
     isLoading,
@@ -36,9 +41,41 @@ export default function Home() {
     updateParams,
   } = useBacktest();
 
+  const { user, isConfigured } = useAuth();
+  const { saveBacktest } = useSupabaseSync(user);
+
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // First-visit onboarding banner (localStorage)
+  useEffect(() => {
+    const seen = localStorage.getItem('easyfi_onboarded');
+    if (!seen) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  function dismissOnboarding() {
+    localStorage.setItem('easyfi_onboarded', '1');
+    setShowOnboarding(false);
+  }
+
   async function handleRun() {
     await run();
     setTab('results');
+  }
+
+  async function handleSave() {
+    if (!user || results.length === 0) return;
+    setSaveStatus('saving');
+    const { error: saveErr } = await saveBacktest(
+      params, results, entryPrice, currentPrice,
+      `${params.symbol} · ${params.days}d`,
+    );
+    setSaveStatus(saveErr ? 'error' : 'saved');
+    setTimeout(() => setSaveStatus('idle'), 3000);
   }
 
   return (
@@ -46,7 +83,48 @@ export default function Home() {
       className="min-h-screen bg-[#0a0a0a] text-[#ccc]"
       style={{ fontFamily: 'Courier New, monospace' }}
     >
-      <Header />
+      <Header
+        user={user}
+        onSignIn={isConfigured ? () => setShowAuthModal(true) : undefined}
+        onOpenHistory={() => setShowHistory(true)}
+      />
+
+      {/* ── Onboarding banner ── */}
+      {showOnboarding && (
+        <div
+          className="px-6 py-3 flex items-center gap-4 border-b border-[#1a1a1a]"
+          style={{ backgroundColor: '#c8f13508' }}
+        >
+          <div className="flex-1">
+            <span className="text-xs font-mono text-[#c8f135] font-bold mr-2">
+              ¡Bienvenido a EasyFi!
+            </span>
+            <span className="text-xs font-mono text-[#666]">
+              Empieza por el{' '}
+              <button
+                className="text-[#c8f135] underline underline-offset-2"
+                onClick={() => { setTab('wizard'); dismissOnboarding(); }}
+              >
+                Configurador
+              </button>{' '}
+              para obtener recomendaciones personalizadas, o ve directamente a{' '}
+              <button
+                className="text-[#888] underline underline-offset-2"
+                onClick={() => { setTab('config'); dismissOnboarding(); }}
+              >
+                Configuración
+              </button>{' '}
+              si ya sabes lo que quieres.
+            </span>
+          </div>
+          <button
+            onClick={dismissOnboarding}
+            className="text-xs font-mono text-[#444] hover:text-[#888] transition-colors flex-shrink-0"
+          >
+            ✕ No mostrar de nuevo
+          </button>
+        </div>
+      )}
 
       <main className="max-w-screen-2xl mx-auto px-4 py-6">
         {/* Toolbar */}
@@ -70,6 +148,31 @@ export default function Home() {
           >
             {isLoading ? '⏳ Running…' : '▶ Run Backtest'}
           </Button>
+
+          {/* Save button — only when results exist and user is signed in */}
+          {results.length > 0 && isConfigured && (
+            user ? (
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={handleSave}
+                disabled={saveStatus === 'saving'}
+              >
+                {saveStatus === 'saving' ? '⏳ Guardando…'
+                  : saveStatus === 'saved' ? '✓ Guardado'
+                  : saveStatus === 'error' ? '✗ Error'
+                  : '↑ Guardar'}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => setShowAuthModal(true)}
+              >
+                ↑ Guardar (inicia sesión)
+              </Button>
+            )
+          )}
 
           {error && (
             <span className="text-xs font-mono text-[#ff5252]">✗ {error}</span>
@@ -117,7 +220,7 @@ export default function Home() {
                 {/* Summary cards */}
                 <section>
                   <SectionTitle>Summary</SectionTitle>
-                  <SummaryCards results={results} />
+                  <SummaryCards results={results} candles={candles} capital={params.capital} />
                 </section>
 
                 {/* Price chart — full width, before table */}
@@ -164,6 +267,12 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Modals */}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showHistory && user && (
+        <BacktestHistory user={user} onClose={() => setShowHistory(false)} />
+      )}
     </div>
   );
 }
