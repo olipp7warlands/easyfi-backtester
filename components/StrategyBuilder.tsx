@@ -43,7 +43,7 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
     const type: StrategyType = 'fixed';
     onAdd({
       id,
-      name: `Strategy ${strategies.length + 1}`,
+      name: `Estrategia ${strategies.length + 1}`,
       type,
       color: PRESET_COLORS[strategies.length % PRESET_COLORS.length],
       rangePct: 5,
@@ -56,10 +56,10 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
     <Box>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-mono font-bold text-[#c8f135] uppercase tracking-wider">
-          Strategies
+          Estrategias
         </h3>
         <Button size="sm" variant="primary" onClick={handleAdd}>
-          + Add
+          + Añadir
         </Button>
       </div>
 
@@ -116,7 +116,7 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
                   {/* Range % */}
                   {s.type !== 'hold' && (
                     <div>
-                      <FieldLabel>Range ±%</FieldLabel>
+                      <FieldLabel>Rango ±%</FieldLabel>
                       <Input
                         type="number"
                         value={s.rangePct}
@@ -192,7 +192,7 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
                         htmlFor={`comp-${s.id}`}
                         className="text-xs font-mono text-[#888] cursor-pointer"
                       >
-                        Compound fees back into position
+                        Reinvertir fees en la posición
                       </label>
                     </div>
                   )}
@@ -200,7 +200,7 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
 
                 <div className="mt-3 flex justify-end">
                   <Button size="sm" variant="danger" onClick={() => onRemove(s.id)}>
-                    Remove
+                    Eliminar
                   </Button>
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
 
         {strategies.length === 0 && (
           <div className="text-center py-6 text-[#444] font-mono text-xs">
-            No strategies. Click + Add to create one.
+            Sin estrategias. Haz clic en + Añadir para crear una.
           </div>
         )}
       </div>

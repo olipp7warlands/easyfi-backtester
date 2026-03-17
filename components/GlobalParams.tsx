@@ -52,13 +52,13 @@ export default function GlobalParams({ params, onUpdate }: Props) {
   return (
     <Box>
       <h3 className="text-sm font-mono font-bold text-[#c8f135] mb-4 uppercase tracking-wider">
-        Global Parameters
+        Parámetros globales
       </h3>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Network — full width, first */}
         <div className="col-span-2">
-          <FieldLabel>Network</FieldLabel>
+          <FieldLabel>Red</FieldLabel>
           <Select
             value={params.network}
             onChange={(v) => handleNetworkChange(v as Network)}
@@ -71,7 +71,7 @@ export default function GlobalParams({ params, onUpdate }: Props) {
 
         {/* Pair */}
         <div>
-          <FieldLabel>Pair</FieldLabel>
+          <FieldLabel>Par</FieldLabel>
           <Select
             value={params.symbol}
             onChange={handlePairChange}
@@ -81,7 +81,7 @@ export default function GlobalParams({ params, onUpdate }: Props) {
 
         {/* Fee Tier */}
         <div>
-          <FieldLabel>Fee Tier</FieldLabel>
+          <FieldLabel>Nivel de fee</FieldLabel>
           <Select
             value={params.feeTier}
             onChange={(v) => onUpdate({ feeTier: parseFloat(v) })}
@@ -105,20 +105,20 @@ export default function GlobalParams({ params, onUpdate }: Props) {
         {/* Days slider */}
         <div className="col-span-2">
           <RangeSlider
-            label="Backtest Period"
+            label="Período del backtest"
             value={params.days}
             onChange={(v) => onUpdate({ days: v })}
             min={7}
             max={365}
             step={1}
-            displayValue={`${params.days} days`}
+            displayValue={`${params.days} días`}
           />
         </div>
 
         {/* Daily Volume */}
         <div>
           <FieldLabel>
-            Daily Volume (USD)
+            Volumen diario (USD)
             {loadingVol !== null && (
               <span className="ml-2 text-[#c8f135] animate-pulse">⟳</span>
             )}
@@ -176,7 +176,7 @@ export default function GlobalParams({ params, onUpdate }: Props) {
 
         {/* Gas Cost */}
         <div>
-          <FieldLabel>Gas / Rebal ($)</FieldLabel>
+          <FieldLabel>Gas / Rebalanceo ($)</FieldLabel>
           <Input
             type="number"
             value={params.gasCost}
@@ -186,7 +186,7 @@ export default function GlobalParams({ params, onUpdate }: Props) {
           />
           {selectedNetwork && (
             <div className="text-xs font-mono text-[#555] mt-1">
-              {selectedNetwork.label} default
+              {selectedNetwork.label} por defecto
             </div>
           )}
         </div>
@@ -206,7 +206,7 @@ export default function GlobalParams({ params, onUpdate }: Props) {
         {/* Rebalance interval */}
         <div className="col-span-2">
           <RangeSlider
-            label="Rebalance Interval"
+            label="Intervalo de rebalanceo"
             value={params.rebalHours}
             onChange={(v) => onUpdate({ rebalHours: v })}
             min={1}

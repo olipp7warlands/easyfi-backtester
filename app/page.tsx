@@ -147,7 +147,7 @@ export default function Home() {
             onClick={handleRun}
             disabled={isLoading || strategies.length === 0}
           >
-            {isLoading ? '⏳ Running…' : '▶ Run Backtest'}
+            {isLoading ? '⏳ Ejecutando…' : '▶ Ejecutar backtest'}
           </Button>
 
           {/* Save button — only when results exist and user is signed in */}
@@ -214,17 +214,17 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="text-5xl mb-4 opacity-20">◎</div>
                 <div className="text-[#444] font-mono text-sm mb-4">
-                  No results yet. Configure parameters and run the backtest.
+                  Sin resultados. Configura los parámetros y ejecuta el backtest.
                 </div>
                 <Button variant="primary" onClick={() => setTab('config')}>
-                  Go to Configuration
+                  Ir a Configuración
                 </Button>
               </div>
             ) : (
               <>
                 {/* Summary cards */}
                 <section>
-                  <SectionTitle>Summary</SectionTitle>
+                  <SectionTitle>Resumen</SectionTitle>
                   <SummaryCards results={results} candles={candles} capital={params.capital} />
                 </section>
 
@@ -239,7 +239,7 @@ export default function Home() {
 
                 {/* Table */}
                 <section>
-                  <SectionTitle>Detailed Results</SectionTitle>
+                  <SectionTitle>Resultados detallados</SectionTitle>
                   <ResultsTable
                     results={results}
                     entryPrice={entryPrice}
@@ -250,7 +250,7 @@ export default function Home() {
 
                 {/* Charts 2×2 */}
                 <section>
-                  <SectionTitle>Charts</SectionTitle>
+                  <SectionTitle>Gráficas</SectionTitle>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
                     <PerfChart results={results} />
                     <FeesChart results={results} />

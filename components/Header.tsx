@@ -57,7 +57,7 @@ export default function Header({ user, onSignIn, onOpenHistory }: Props) {
                 border: '1px solid #2a2a2a',
               }}
             >
-              Sign in
+              Entrar →
             </button>
           ) : null}
         </div>

@@ -52,17 +52,17 @@ export default function ResultsTable({
       <table className="w-full min-w-max">
         <thead>
           <tr className="bg-[#0d0d0d]">
-            <Th>Strategy</Th>
-            <Th>Provided</Th>
-            <Th>Market Value</Th>
+            <Th>Estrategia</Th>
+            <Th>Aportado</Th>
+            <Th>Valor mercado</Th>
             <Th>IL ($)</Th>
-            <Th>FEES ($)</Th>
-            <Th>Daily APR</Th>
-            <Th>Net IL PnL%</Th>
+            <Th>Fees ($)</Th>
+            <Th>APR diario</Th>
+            <Th>PnL neto%</Th>
             <Th>%IL</Th>
             <Th>%APR</Th>
-            <Th>Month APR%</Th>
-            <Th>Annual APR</Th>
+            <Th>APR mensual%</Th>
+            <Th>APR anual</Th>
             <Th>Cap+Comp</Th>
             <Th>Rebalanceos</Th>
             <Th>Coste total</Th>
@@ -73,7 +73,7 @@ export default function ResultsTable({
           {/* Entry price row */}
           <tr className="bg-[#1a0a00] border-b border-[#2a1500]">
             <Td align="left" color="#ff8c42">
-              ▶ Entry Price
+              ▶ Precio entrada
             </Td>
             <Td color="#ff8c42">{fmtPrice(entryPrice)}</Td>
             {Array.from({ length: 13 }).map((_, i) => (
@@ -146,7 +146,7 @@ export default function ResultsTable({
           {/* Current price row */}
           <tr className="bg-[#00101a] border-t border-[#003050]">
             <Td align="left" color="#42a5f5">
-              ■ Current Price
+              ■ Precio actual
             </Td>
             <Td color="#42a5f5">{fmtPrice(currentPrice)}</Td>
             {Array.from({ length: 13 }).map((_, i) => (
