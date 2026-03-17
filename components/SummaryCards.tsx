@@ -16,6 +16,14 @@ interface Props {
   capital: number;
 }
 
+// ── P5: Strategy type descriptions ────────────────────────────────────────────
+const DESCRIPTIONS: Record<string, string> = {
+  hold:  'Sin LP. Solo tracking del precio del activo. Referencia base para comparar el resto de estrategias.',
+  fixed: 'Rango estático desde el precio de entrada. Nunca rebalancea — cero coste de gas. Deja de generar fees si el precio sale del rango. Ideal para mercados laterales con poca volatilidad.',
+  dyn:   'Rebalancea automáticamente cuando el precio sale del rango y ha pasado el intervalo configurado. Siempre generando fees. Coste: gas + slippage en cada rebalanceo.',
+  scalp: 'Rango muy estrecho para maximizar la concentración de liquidez y fees por unidad. Alta frecuencia de rebalanceos. Solo rentable en redes con gas barato (Arbitrum, Base).',
+};
+
 const TICK_STYLE = { fill: '#444', fontSize: 9, fontFamily: 'Courier New' };
 const TT_STYLE = {
   backgroundColor: '#161616',
@@ -28,7 +36,7 @@ const TT_STYLE = {
 
 function StatRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="flex justify-between items-center py-1 border-b border-[#1a1a1a] last:border-0">
+    <div className="flex justify-between items-center py-1.5 border-b border-[#1a1a1a] last:border-0">
       <span className="text-xs font-mono text-[#555]">{label}</span>
       <span className="text-xs font-mono" style={{ color: color ?? '#ccc' }}>
         {value}
@@ -37,42 +45,52 @@ function StatRow({ label, value, color }: { label: string; value: string; color?
   );
 }
 
+// ── P5: ConfigTab with description paragraph ──────────────────────────────────
 function ConfigTab({ r }: { r: StratResult }) {
   const { strategy, metrics } = r;
   const pctInRangeColor =
     metrics.pctInRange >= 70 ? '#c8f135' : metrics.pctInRange >= 40 ? '#ff8c42' : '#ff5252';
+  const desc = DESCRIPTIONS[strategy.type];
 
   return (
-    <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0">
-      <div>
-        <StatRow label="Tipo" value={strategy.type.toUpperCase()} />
-        <StatRow label="Rango ±%" value={`${strategy.rangePct}%`} />
-        {strategy.type === 'fixed' && strategy.absLo != null && (
-          <StatRow label="Límite bajo" value={fmtPrice(strategy.absLo)} />
-        )}
-        {strategy.type === 'fixed' && strategy.absHi != null && (
-          <StatRow label="Límite alto" value={fmtPrice(strategy.absHi)} />
-        )}
-        <StatRow label="Compounding" value={strategy.compounding ? 'Sí' : 'No'} />
-      </div>
-      <div>
-        <StatRow label="Total Fees" value={fmtUSD(metrics.totalFees)} color="#c8f135" />
-        <StatRow label="IL" value={fmtUSD(-metrics.totalIL)} color={colorForValue(-metrics.totalIL)} />
-        <StatRow label="Rebalanceos" value={String(metrics.rebalCount)} />
-        <StatRow label="% En rango" value={`${metrics.pctInRange.toFixed(1)}%`} color={pctInRangeColor} />
-        <StatRow label="Coste rebalanceos" value={fmtUSD(metrics.totalRebalCost)} color="#ff5252" />
+    <div className="p-4">
+      {desc && (
+        <p className="text-xs font-mono text-[#666] leading-relaxed mb-4 pb-4 border-b border-[#1a1a1a]">
+          {desc}
+        </p>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+        <div>
+          <StatRow label="Tipo" value={strategy.type.toUpperCase()} />
+          <StatRow label="Rango ±%" value={`${strategy.rangePct}%`} />
+          {strategy.type === 'fixed' && strategy.absLo != null && (
+            <StatRow label="Límite bajo" value={fmtPrice(strategy.absLo)} />
+          )}
+          {strategy.type === 'fixed' && strategy.absHi != null && (
+            <StatRow label="Límite alto" value={fmtPrice(strategy.absHi)} />
+          )}
+          <StatRow label="Compounding" value={strategy.compounding ? 'Sí' : 'No'} />
+        </div>
+        <div>
+          <StatRow label="Total Fees" value={fmtUSD(metrics.totalFees)} color="#c8f135" />
+          <StatRow label="IL" value={fmtUSD(-metrics.totalIL)} color={colorForValue(-metrics.totalIL)} />
+          <StatRow label="Rebalanceos" value={String(metrics.rebalCount)} />
+          <StatRow label="% En rango" value={`${metrics.pctInRange.toFixed(1)}%`} color={pctInRangeColor} />
+          <StatRow label="Coste rebalanceos" value={fmtUSD(metrics.totalRebalCost)} color="#ff5252" />
+        </div>
       </div>
     </div>
   );
 }
 
+// ── P6: RebalancesTab with mini chart + history table ─────────────────────────
 function RebalancesTab({ r, candles }: { r: StratResult; candles: Candle[] }) {
   const { rebalanceHistory, strategy } = r;
 
-  if (rebalanceHistory.length === 0) {
+  if (!rebalanceHistory || rebalanceHistory.length === 0) {
     return (
-      <div className="p-4 text-center text-xs font-mono text-[#444] py-8">
-        No hubo rebalanceos para esta estrategia.
+      <div className="p-6 text-center text-xs font-mono text-[#444]">
+        Esta estrategia no rebalanceó durante el período.
       </div>
     );
   }
@@ -81,7 +99,6 @@ function RebalancesTab({ r, candles }: { r: StratResult; candles: Candle[] }) {
 
   return (
     <div className="p-4">
-      {/* Mini chart */}
       <ResponsiveContainer width="100%" height={160}>
         <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
@@ -112,7 +129,6 @@ function RebalancesTab({ r, candles }: { r: StratResult; candles: Candle[] }) {
         </LineChart>
       </ResponsiveContainer>
 
-      {/* History table */}
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-xs font-mono">
           <thead>
@@ -120,9 +136,9 @@ function RebalancesTab({ r, candles }: { r: StratResult; candles: Candle[] }) {
               <th className="text-left py-1.5 text-[#444] font-normal pr-3">#</th>
               <th className="text-left py-1.5 text-[#444] font-normal pr-3">Fecha</th>
               <th className="text-right py-1.5 text-[#444] font-normal pr-3">Precio</th>
-              <th className="text-right py-1.5 text-[#444] font-normal pr-3">Rango anterior</th>
+              <th className="text-right py-1.5 text-[#444] font-normal pr-3">Rango ant.</th>
               <th className="text-right py-1.5 text-[#444] font-normal pr-3">Nuevo rango</th>
-              <th className="text-right py-1.5 text-[#444] font-normal pr-3">Coste</th>
+              <th className="text-right py-1.5 text-[#444] font-normal pr-3">Gas</th>
               <th className="text-right py-1.5 text-[#444] font-normal">Fees acum.</th>
             </tr>
           </thead>
@@ -153,7 +169,9 @@ function RebalancesTab({ r, candles }: { r: StratResult; candles: Candle[] }) {
   );
 }
 
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function SummaryCards({ results, candles, capital }: Props) {
+  // P3: hooks always before any early return
   const [openId, setOpenId] = useState<string | null>(null);
   const [tabMap, setTabMap] = useState<Record<string, 'config' | 'rebalances'>>({});
 
@@ -166,13 +184,17 @@ export default function SummaryCards({ results, candles, capital }: Props) {
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    // P3: grid with items-start so open cards don't stretch closed ones
+    <div className="grid gap-3 items-start sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {results.map((r) => {
         const { metrics, strategy } = r;
         const isOpen = openId === strategy.id;
         const isBest =
           strategy.type !== 'hold' && metrics.annualAPR === maxAPR && maxAPR > 0;
         const currentTab = tabMap[strategy.id] ?? 'config';
+
+        const pctInRangeColor =
+          metrics.pctInRange >= 70 ? '#c8f135' : metrics.pctInRange >= 40 ? '#ff8c42' : '#ff5252';
 
         const narrative =
           candles.length > 0
@@ -186,73 +208,86 @@ export default function SummaryCards({ results, candles, capital }: Props) {
         return (
           <div
             key={strategy.id}
-            className="border border-[#1a1a1a] rounded-lg overflow-hidden"
+            className="border border-[#1a1a1a] rounded-lg overflow-hidden bg-[#0d0d0d]"
             style={{ borderLeftColor: strategy.color, borderLeftWidth: 3 }}
           >
-            {/* Header row — always visible */}
-            <div
-              className="flex flex-wrap items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[#0d0d0d] transition-colors"
-              onClick={() => setOpenId(isOpen ? null : strategy.id)}
-            >
-              <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: strategy.color }}
-              />
-              <span
-                className="font-mono text-sm font-bold"
-                style={{ color: strategy.color }}
-              >
-                {strategy.name}
-              </span>
+            {/* Always-visible card body */}
+            <div className="px-4 pt-4 pb-3 relative">
               {isBest && (
-                <Badge color="#c8f135">BEST</Badge>
+                <Badge className="absolute top-3 right-3" color="#c8f135">
+                  BEST
+                </Badge>
               )}
 
-              <div className="ml-auto flex flex-wrap items-center gap-4 sm:gap-6">
-                <div className="text-right">
-                  <div className="text-[10px] font-mono text-[#555]">APR</div>
-                  <div
-                    className="text-sm font-mono font-bold"
-                    style={{ color: colorForValue(metrics.annualAPR) }}
-                  >
-                    {fmtPct(metrics.annualAPR)}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-mono text-[#555]">Fees</div>
-                  <div className="text-sm font-mono" style={{ color: '#c8f135' }}>
-                    {fmtUSD(metrics.totalFees)}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-mono text-[#555]">Net PnL</div>
-                  <div
-                    className="text-sm font-mono"
-                    style={{ color: colorForValue(metrics.netPnl) }}
-                  >
-                    {fmtUSD(metrics.netPnl)}
-                  </div>
-                </div>
-                <div className="text-right hidden sm:block">
-                  <div className="text-[10px] font-mono text-[#555]">En rango</div>
-                  <div className="text-sm font-mono text-[#ccc]">
-                    {metrics.pctInRange.toFixed(0)}%
-                  </div>
-                </div>
-                <span className="text-xs text-[#444]">{isOpen ? '▲' : '▼'}</span>
+              <div className="flex items-center gap-2 mb-3">
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: strategy.color }}
+                />
+                <span
+                  className="font-mono text-sm font-bold truncate"
+                  style={{ color: strategy.color }}
+                >
+                  {strategy.name}
+                </span>
               </div>
+
+              {/* Hero metric */}
+              <div className="mb-3">
+                <div className="text-xs font-mono text-[#555] mb-0.5">Annual APR</div>
+                <div
+                  className="text-2xl font-mono font-bold"
+                  style={{ color: colorForValue(metrics.annualAPR) }}
+                >
+                  {fmtPct(metrics.annualAPR)}
+                </div>
+              </div>
+
+              <StatRow label="Total Fees" value={fmtUSD(metrics.totalFees)} color="#c8f135" />
+              <StatRow
+                label="IL"
+                value={fmtUSD(-metrics.totalIL)}
+                color={colorForValue(-metrics.totalIL)}
+              />
+              <StatRow
+                label="Final Value"
+                value={fmtUSD(metrics.finalValue)}
+                color={colorForValue(metrics.netPnl)}
+              />
+              <StatRow label="Rebalanceos" value={String(metrics.rebalCount)} />
+              <StatRow
+                label="% En rango"
+                value={`${metrics.pctInRange.toFixed(1)}%`}
+                color={pctInRangeColor}
+              />
             </div>
 
-            {/* Expanded content */}
+            {/* P3: "Ver más" button at the bottom of the card */}
+            <div className="border-t border-[#1a1a1a]">
+              <button
+                className="w-full px-4 py-2 text-xs font-mono text-[#555] hover:text-[#888] hover:bg-[#111] transition-colors flex items-center justify-center gap-1.5"
+                onClick={() => setOpenId(openId === strategy.id ? null : strategy.id)}
+              >
+                {isOpen ? 'Ver menos ▲' : 'Ver más ▼'}
+              </button>
+            </div>
+
+            {/* Accordion panel */}
             {isOpen && (
               <div className="border-t border-[#1a1a1a]">
-                {/* Narrative block */}
+                {/* P4: Narrative with labelled sections */}
                 {narrative && (
                   <div className="px-4 py-3 bg-[#0a0a0a] border-b border-[#1a1a1a]">
-                    <p className="text-xs font-mono text-[#888] leading-relaxed">
+                    <div className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">
+                      💡 Qué pasó
+                    </div>
+                    <p className="text-xs font-mono text-[#888] leading-relaxed mb-3">
                       {narrative.whatHappened}
                     </p>
-                    <p className="text-xs font-mono text-[#555] leading-relaxed mt-1.5">
+                    <div className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">
+                      📊 Análisis
+                    </div>
+                    <p className="text-xs font-mono text-[#666] leading-relaxed">
                       {narrative.whyPerformed}
                     </p>
                   </div>
@@ -267,12 +302,15 @@ export default function SummaryCards({ results, candles, capital }: Props) {
                       className="px-4 py-2 text-xs font-mono transition-colors"
                       style={{
                         color: currentTab === t ? strategy.color : '#555',
-                        borderBottom: currentTab === t ? `1px solid ${strategy.color}` : '1px solid transparent',
+                        borderBottom:
+                          currentTab === t
+                            ? `1px solid ${strategy.color}`
+                            : '1px solid transparent',
                       }}
                     >
                       {t === 'config'
                         ? 'Configuración'
-                        : `Rebalanceos (${r.rebalanceHistory.length})`}
+                        : `Rebalanceos (${r.rebalanceHistory?.length ?? 0})`}
                     </button>
                   ))}
                 </div>

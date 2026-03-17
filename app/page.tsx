@@ -46,21 +46,18 @@ export default function Home() {
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  // First-visit onboarding banner (localStorage)
+  // First-visit: set tab to Configurador and show welcome banner
   useEffect(() => {
-    const seen = localStorage.getItem('easyfi_onboarded');
-    if (!seen) {
-      setShowOnboarding(true);
+    const visited = localStorage.getItem('easyfi_visited');
+    if (!visited) {
+      setTab('wizard');
+      setShowBanner(true);
+      localStorage.setItem('easyfi_visited', 'true');
     }
   }, []);
-
-  function dismissOnboarding() {
-    localStorage.setItem('easyfi_onboarded', '1');
-    setShowOnboarding(false);
-  }
 
   async function handleRun() {
     await run();
@@ -89,28 +86,32 @@ export default function Home() {
         onOpenHistory={() => setShowHistory(true)}
       />
 
-      {/* ── Onboarding banner ── */}
-      {showOnboarding && (
+      {/* ── Welcome banner (first visit only) ── */}
+      {showBanner && (
         <div
-          className="px-6 py-3 flex items-center gap-4 border-b border-[#1a1a1a]"
-          style={{ backgroundColor: '#c8f13508' }}
+          className="px-6 py-3 flex items-center gap-4 border-b"
+          style={{
+            backgroundColor: '#0d1a00',
+            borderColor: '#c8f13533',
+            borderBottomWidth: 1,
+          }}
         >
           <div className="flex-1">
             <span className="text-xs font-mono text-[#c8f135] font-bold mr-2">
-              ¡Bienvenido a EasyFi!
+              👋 Bienvenido a EasyFi Backtester
             </span>
             <span className="text-xs font-mono text-[#666]">
-              Empieza por el{' '}
+              Usa el{' '}
               <button
                 className="text-[#c8f135] underline underline-offset-2"
-                onClick={() => { setTab('wizard'); dismissOnboarding(); }}
+                onClick={() => { setTab('wizard'); setShowBanner(false); }}
               >
                 Configurador
               </button>{' '}
-              para obtener recomendaciones personalizadas, o ve directamente a{' '}
+              para obtener recomendaciones personalizadas, o{' '}
               <button
                 className="text-[#888] underline underline-offset-2"
-                onClick={() => { setTab('config'); dismissOnboarding(); }}
+                onClick={() => { setTab('config'); setShowBanner(false); }}
               >
                 Configuración
               </button>{' '}
@@ -118,10 +119,10 @@ export default function Home() {
             </span>
           </div>
           <button
-            onClick={dismissOnboarding}
-            className="text-xs font-mono text-[#444] hover:text-[#888] transition-colors flex-shrink-0"
+            onClick={() => setShowBanner(false)}
+            className="text-xs font-mono text-[#555] hover:text-[#888] transition-colors flex-shrink-0"
           >
-            ✕ No mostrar de nuevo
+            ✕
           </button>
         </div>
       )}
