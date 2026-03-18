@@ -5,11 +5,15 @@
 
 -- ── Profiles ──────────────────────────────────────────────────────────────────
 create table if not exists public.profiles (
-  id          uuid references auth.users(id) on delete cascade primary key,
-  email       text,
-  created_at  timestamptz default now() not null,
-  updated_at  timestamptz default now() not null
+  id                    uuid references auth.users(id) on delete cascade primary key,
+  email                 text,
+  onboarding_completed  boolean default false not null,
+  created_at            timestamptz default now() not null,
+  updated_at            timestamptz default now() not null
 );
+
+-- If profiles table already exists, run this migration:
+-- alter table public.profiles add column if not exists onboarding_completed boolean default false not null;
 alter table public.profiles enable row level security;
 
 create policy "Users can view their own profile"

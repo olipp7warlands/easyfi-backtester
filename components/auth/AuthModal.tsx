@@ -6,9 +6,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   onClose: () => void;
+  closeable?: boolean;
 }
 
-export default function AuthModal({ onClose }: Props) {
+export default function AuthModal({ onClose, closeable = true }: Props) {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -47,12 +48,14 @@ export default function AuthModal({ onClose }: Props) {
           <h2 className="font-mono font-bold text-sm text-[#c8f135] uppercase tracking-wider">
             {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-[#555] hover:text-[#ccc] transition-colors font-mono text-sm"
-          >
-            ✕
-          </button>
+          {closeable && (
+            <button
+              onClick={onClose}
+              className="text-[#555] hover:text-[#ccc] transition-colors font-mono text-sm"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {done ? (

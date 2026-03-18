@@ -15,7 +15,7 @@ import {
   PriceRangeChart,
   PnlChart,
 } from '@/components/charts';
-import { Button, SegmentedControl } from '@/components/ui';
+import { Button, SegmentedControl, Input, FieldLabel } from '@/components/ui';
 import StrategyConfigurator from '@/components/StrategyConfigurator';
 import AuthModal from '@/components/auth/AuthModal';
 import BacktestHistory from '@/components/BacktestHistory';
@@ -41,39 +41,77 @@ export default function Home() {
     updateParams,
   } = useBacktest();
 
-  const { user, isConfigured } = useAuth();
+  const { user, loading, needsOnboarding, updateProfile, isConfigured } = useAuth();
   const { saveBacktest } = useSupabaseSync(user);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveName, setSaveName] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // First-visit: set tab to Configurador and show welcome banner
+  // Auto-show AuthModal for unauthenticated users (when Supabase is configured)
   useEffect(() => {
-    const visited = localStorage.getItem('easyfi_visited');
-    if (!visited) {
+    if (!loading && !user && isConfigured) {
+      setShowAuthModal(true);
+    }
+  }, [loading, user, isConfigured]);
+
+  // Auto-close AuthModal when user authenticates
+  useEffect(() => {
+    if (user) setShowAuthModal(false);
+  }, [user]);
+
+  // Set tab based on onboarding/auth status (runs after profile loads)
+  useEffect(() => {
+    if (loading) return;
+    if (needsOnboarding) {
       setTab('wizard');
       setShowBanner(true);
-      localStorage.setItem('easyfi_visited', 'true');
+    } else if (user) {
+      setTab((prev) => (prev === 'wizard' ? 'config' : prev));
+      setShowBanner(false);
     }
-  }, []);
+  }, [loading, user, needsOnboarding]);
+
+  // First-visit welcome banner (non-authenticated / Supabase not configured)
+  useEffect(() => {
+    if (!isConfigured && !loading) {
+      const visited = localStorage.getItem('easyfi_visited');
+      if (!visited) {
+        setTab('wizard');
+        setShowBanner(true);
+        localStorage.setItem('easyfi_visited', 'true');
+      }
+    }
+  }, [isConfigured, loading]);
+
+  function showToast(msg: string) {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  }
 
   async function handleRun() {
     await run();
     setTab('results');
   }
 
-  async function handleSave() {
+  async function handleSave(name: string) {
     if (!user || results.length === 0) return;
     setSaveStatus('saving');
     const { error: saveErr } = await saveBacktest(
-      params, results, entryPrice, currentPrice,
-      `${params.symbol} · ${params.days}d`,
+      params, results, entryPrice, currentPrice, name,
     );
     setSaveStatus(saveErr ? 'error' : 'saved');
+    if (!saveErr) showToast('✓ Backtest guardado');
     setTimeout(() => setSaveStatus('idle'), 3000);
+    setShowSaveModal(false);
   }
+
+  const isOnboarding = isConfigured && needsOnboarding;
+  const bannerIsOnboarding = isOnboarding && showBanner;
 
   return (
     <div
@@ -86,7 +124,7 @@ export default function Home() {
         onOpenHistory={() => setShowHistory(true)}
       />
 
-      {/* ── Welcome banner (first visit only) ── */}
+      {/* ── Welcome / Onboarding banner ── */}
       {showBanner && (
         <div
           className="px-6 py-3 flex items-center gap-4 border-b"
@@ -98,32 +136,41 @@ export default function Home() {
         >
           <div className="flex-1">
             <span className="text-xs font-mono text-[#c8f135] font-bold mr-2">
-              👋 Bienvenido a EasyFi Backtester
+              {bannerIsOnboarding ? '🚀 Bienvenido a EasyFi' : '👋 Bienvenido a EasyFi Backtester'}
             </span>
-            <span className="text-xs font-mono text-[#666]">
-              Usa el{' '}
-              <button
-                className="text-[#c8f135] underline underline-offset-2"
-                onClick={() => { setTab('wizard'); setShowBanner(false); }}
-              >
-                Configurador
-              </button>{' '}
-              para obtener recomendaciones personalizadas, o{' '}
-              <button
-                className="text-[#888] underline underline-offset-2"
-                onClick={() => { setTab('config'); setShowBanner(false); }}
-              >
-                Configuración
-              </button>{' '}
-              si ya sabes lo que quieres.
-            </span>
+            {bannerIsOnboarding ? (
+              <span className="text-xs font-mono text-[#666]">
+                Completa el configurador para ejecutar tu primer backtest.
+                Se guardará automáticamente en tu cuenta.
+              </span>
+            ) : (
+              <span className="text-xs font-mono text-[#666]">
+                Usa el{' '}
+                <button
+                  className="text-[#c8f135] underline underline-offset-2"
+                  onClick={() => { setTab('wizard'); setShowBanner(false); }}
+                >
+                  Configurador
+                </button>{' '}
+                para obtener recomendaciones personalizadas, o{' '}
+                <button
+                  className="text-[#888] underline underline-offset-2"
+                  onClick={() => { setTab('config'); setShowBanner(false); }}
+                >
+                  Configuración
+                </button>{' '}
+                si ya sabes lo que quieres.
+              </span>
+            )}
           </div>
-          <button
-            onClick={() => setShowBanner(false)}
-            className="text-xs font-mono text-[#555] hover:text-[#888] transition-colors flex-shrink-0"
-          >
-            ✕
-          </button>
+          {!bannerIsOnboarding && (
+            <button
+              onClick={() => setShowBanner(false)}
+              className="text-xs font-mono text-[#555] hover:text-[#888] transition-colors flex-shrink-0"
+            >
+              ✕
+            </button>
+          )}
         </div>
       )}
 
@@ -150,19 +197,22 @@ export default function Home() {
             {isLoading ? '⏳ Ejecutando…' : '▶ Ejecutar backtest'}
           </Button>
 
-          {/* Save button — only when results exist and user is signed in */}
+          {/* Save button */}
           {results.length > 0 && isConfigured && (
             user ? (
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleSave}
+                onClick={() => {
+                  setSaveName(`${params.symbol} · ${params.days}d`);
+                  setShowSaveModal(true);
+                }}
                 disabled={saveStatus === 'saving'}
               >
                 {saveStatus === 'saving' ? '⏳ Guardando…'
                   : saveStatus === 'saved' ? '✓ Guardado'
                   : saveStatus === 'error' ? '✗ Error'
-                  : '↑ Guardar'}
+                  : '💾 Guardar backtest'}
               </Button>
             ) : (
               <Button
@@ -170,7 +220,7 @@ export default function Home() {
                 size="lg"
                 onClick={() => setShowAuthModal(true)}
               >
-                ↑ Guardar (inicia sesión)
+                💾 Guardar (inicia sesión)
               </Button>
             )
           )}
@@ -185,10 +235,23 @@ export default function Home() {
           <StrategyConfigurator
             params={params}
             onAddStrategy={addStrategy}
+            isOnboarding={isOnboarding}
             onRunBacktest={async (strategy) => {
               addStrategy(strategy);
-              await run([...strategies, strategy]);
+              const runResult = await run([...strategies, strategy]);
               setTab('results');
+              // Onboarding: auto-save + mark completed
+              if (isOnboarding && runResult && user) {
+                const { error: saveErr } = await saveBacktest(
+                  params,
+                  runResult.results,
+                  runResult.entryPrice,
+                  runResult.currentPrice,
+                  `${params.symbol} · ${params.days}d`,
+                );
+                if (!saveErr) showToast('✓ Backtest guardado automáticamente');
+                await updateProfile({ onboarding_completed: true });
+              }
             }}
             onGoToConfig={() => setTab('config')}
           />
@@ -222,13 +285,11 @@ export default function Home() {
               </div>
             ) : (
               <>
-                {/* Summary cards */}
                 <section>
                   <SectionTitle>Resumen</SectionTitle>
                   <SummaryCards results={results} candles={candles} capital={params.capital} />
                 </section>
 
-                {/* Price chart — full width, before table */}
                 <section>
                   <PriceChart
                     results={results}
@@ -237,7 +298,6 @@ export default function Home() {
                   />
                 </section>
 
-                {/* Table */}
                 <section>
                   <SectionTitle>Resultados detallados</SectionTitle>
                   <ResultsTable
@@ -248,7 +308,6 @@ export default function Home() {
                   />
                 </section>
 
-                {/* Charts 2×2 */}
                 <section>
                   <SectionTitle>Gráficas</SectionTitle>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
@@ -257,7 +316,6 @@ export default function Home() {
                     <ILChart results={results} />
                     <ComparisonBarChart results={results} />
                   </div>
-                  {/* Full-width */}
                   <div className="flex flex-col gap-4">
                     <PriceRangeChart
                       results={results}
@@ -273,10 +331,67 @@ export default function Home() {
         )}
       </main>
 
-      {/* Modals */}
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {/* ── Modals ── */}
+      {showAuthModal && (
+        <AuthModal closeable onClose={() => setShowAuthModal(false)} />
+      )}
+
+      {/* Save backtest modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#111] border border-[#222] rounded-lg p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-mono font-bold text-sm text-[#c8f135] uppercase tracking-wider">
+                Guardar backtest
+              </h2>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="text-[#555] hover:text-[#ccc] transition-colors font-mono text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mb-4">
+              <FieldLabel>Nombre</FieldLabel>
+              <Input
+                value={saveName}
+                onChange={setSaveName}
+                placeholder="Mi backtest ETH"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSave(saveName)}
+                disabled={saveStatus === 'saving' || !saveName.trim()}
+                className="flex-1 font-mono rounded transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2 text-sm"
+                style={{ backgroundColor: '#c8f135', color: '#000' }}
+              >
+                {saveStatus === 'saving' ? '⏳ Guardando…' : '💾 Guardar'}
+              </button>
+              <Button variant="ghost" size="sm" onClick={() => setShowSaveModal(false)}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showHistory && user && (
         <BacktestHistory user={user} onClose={() => setShowHistory(false)} />
+      )}
+
+      {/* ── Toast ── */}
+      {toastMsg && (
+        <div
+          className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg font-mono text-xs"
+          style={{
+            backgroundColor: '#0d1a00',
+            color: '#c8f135',
+            border: '1px solid #2d3a0f',
+          }}
+        >
+          {toastMsg}
+        </div>
       )}
     </div>
   );

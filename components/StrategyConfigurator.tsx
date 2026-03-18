@@ -22,6 +22,7 @@ interface Props {
   onAddStrategy: (s: Strategy) => void;
   onRunBacktest: (strategy: Strategy) => void;
   onGoToConfig: () => void;
+  isOnboarding?: boolean;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -282,7 +283,7 @@ function QuickEstimates({
 // ── Main wizard ───────────────────────────────────────────────────────────────
 
 export default function StrategyConfigurator({
-  params, onAddStrategy, onRunBacktest, onGoToConfig,
+  params, onAddStrategy, onRunBacktest, onGoToConfig, isOnboarding = false,
 }: Props) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [profile, setProfile] = useState<Partial<UserProfile>>({
@@ -562,7 +563,9 @@ export default function StrategyConfigurator({
                   onClick={handleRunBacktest}
                   disabled={!nameValid}
                 >
-                  ▶ Ejecutar backtest con esta estrategia
+                  {isOnboarding
+                    ? '🚀 Empezar mi primer backtest'
+                    : '▶ Ejecutar backtest con esta estrategia'}
                 </Button>
                 <Button
                   variant="secondary"

@@ -47,8 +47,10 @@ export function useBacktest() {
       setResults(r);
       setEntryPrice(ep);
       setCurrentPrice(cp);
+      return { results: r, entryPrice: ep, currentPrice: cp };
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
+      return null;
     } finally {
       setIsLoading(false);
     }
