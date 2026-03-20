@@ -10,52 +10,88 @@ export function useSupabaseSync(user: User | null) {
     async (
       params: BacktestParams,
       results: StratResult[],
-      entryPrice: number,
-      currentPrice: number,
       name: string = 'Backtest',
     ) => {
-      if (!user) return { error: new Error('Not authenticated') };
+      console.log('=== saveBacktest START ===');
+      console.log('user:', user?.id);
+      console.log('name:', name);
 
-      const { data: bt, error: btError } = await supabase
-        .from('backtests')
-        .insert({
-          user_id: user.id,
-          name,
-          symbol: params.symbol,
-          network: params.network,
-          days: params.days,
-          fee_tier: params.feeTier,
-          capital: params.capital,
-          daily_vol: params.dailyVol,
-          tvl: params.tvl,
-          gas_cost: params.gasCost,
-          slippage: params.slippage,
+      if (!user) {
+        console.error('NO USER - aborting');
+        return { error: new Error('Not authenticated') };
+      }
+
+      try {
+        const insertData = {
+          user_id:     user.id,
+          name:        name,
+          symbol:      params.symbol,
+          network:     params.network,
+          days:        params.days,
+          fee_tier:    params.feeTier,
+          capital:     params.capital,
+          daily_vol:   params.dailyVol,
+          tvl:         params.tvl,
+          gas_cost:    params.gasCost,
+          slippage:    params.slippage,
           rebal_hours: params.rebalHours,
-          entry_price: entryPrice,
-          current_price: currentPrice,
-        })
-        .select()
-        .single();
+        };
+        console.log('insertData:', JSON.stringify(insertData));
 
-      if (btError || !bt) return { error: btError };
+        const { data: bt, error: btErr } = await supabase
+          .from('backtests')
+          .insert(insertData)
+          .select('id')
+          .single();
 
-      const rows = results.map((r) => ({
-        backtest_id: bt.id,
-        strategy_name: r.strategy.name,
-        strategy_type: r.strategy.type,
-        strategy_color: r.strategy.color,
-        annual_apr: r.metrics.annualAPR,
-        total_fees: r.metrics.totalFees,
-        total_il: r.metrics.totalIL,
-        final_value: r.metrics.finalValue,
-        rebal_count: r.metrics.rebalCount,
-        pct_in_range: r.metrics.pctInRange,
-        total_rebal_cost: r.metrics.totalRebalCost,
-        net_pnl: r.metrics.netPnl,
-      }));
+        console.log('bt:', JSON.stringify(bt));
+        console.log('btErr:', JSON.stringify(btErr));
 
-      const { error: resError } = await supabase.from('backtest_results').insert(rows);
-      return { error: resError, backtestId: bt.id };
+        if (btErr) {
+          console.error('BACKTEST INSERT FAILED:', btErr.message, btErr.code, btErr.details);
+          return { error: btErr };
+        }
+        if (!bt) {
+          console.error('NO BT RETURNED');
+          return { error: new Error('No backtest returned') };
+        }
+
+        const rows = results.map((r) => ({
+          backtest_id:      bt.id,
+          strategy_name:    r.strategy.name,
+          strategy_type:    r.strategy.type,
+          strategy_color:   r.strategy.color,
+          annual_apr:       r.metrics.annualAPR,
+          total_fees:       r.metrics.totalFees,
+          total_il:         r.metrics.totalIL,
+          final_value:      r.metrics.finalValue,
+          rebal_count:      r.metrics.rebalCount,
+          pct_in_range:     r.metrics.pctInRange,
+          total_rebal_cost: r.metrics.totalRebalCost,
+          net_pnl:          r.metrics.netPnl,
+        }));
+
+        console.log('inserting results rows:', rows.length);
+        console.log('first row sample:', JSON.stringify(rows[0]));
+
+        const { error: resErr } = await supabase
+          .from('backtest_results')
+          .insert(rows);
+
+        console.log('resErr:', JSON.stringify(resErr));
+
+        if (resErr) {
+          console.error('RESULTS INSERT FAILED:', resErr.message, resErr.code, resErr.details);
+          return { error: resErr };
+        }
+
+        console.log('=== saveBacktest SUCCESS ===', bt.id);
+        return { error: null, backtestId: bt.id };
+
+      } catch (err) {
+        console.error('=== saveBacktest EXCEPTION ===', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
     },
     [user],
   );
@@ -63,13 +99,13 @@ export function useSupabaseSync(user: User | null) {
   const saveStrategy = useCallback(async (strategy: Strategy) => {
     if (!user) return { error: new Error('Not authenticated') };
     const { error } = await supabase.from('strategies').insert({
-      user_id: user.id,
-      name: strategy.name,
-      type: strategy.type,
-      color: strategy.color,
-      range_pct: strategy.rangePct,
-      abs_lo: strategy.absLo ?? null,
-      abs_hi: strategy.absHi ?? null,
+      user_id:    user.id,
+      name:       strategy.name,
+      type:       strategy.type,
+      color:      strategy.color,
+      range_pct:  strategy.rangePct,
+      abs_lo:     strategy.absLo ?? null,
+      abs_hi:     strategy.absHi ?? null,
       compounding: strategy.compounding,
     });
     return { error };

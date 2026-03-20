@@ -272,6 +272,25 @@ export default function StrategyBuilder({
                     )}
                   </div>
                 )}
+
+                {/* RebalHours row */}
+                {s.type !== 'hold' && (
+                  <div className="flex items-center gap-3 mt-2">
+                    <FieldLabel className="mb-0">REBALANCEO CADA</FieldLabel>
+                    <input
+                      type="range"
+                      min={1}
+                      max={24}
+                      step={1}
+                      value={s.rebalHours ?? 4}
+                      onChange={(e) => onUpdate(s.id, { rebalHours: Number(e.target.value) })}
+                      className="flex-1 cursor-pointer h-1 rounded appearance-none bg-[#333] accent-[#c8f135]"
+                    />
+                    <span className="text-xs font-mono text-[#c8f135] w-8 text-right">
+                      {s.rebalHours ?? 4}h
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           );

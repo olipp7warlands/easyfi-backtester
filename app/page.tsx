@@ -117,7 +117,7 @@ export default function Home() {
     setSaveStatus('saving');
     try {
       const { error: saveErr } = await saveBacktest(
-        params, results, entryPrice, currentPrice, name,
+        params, results, name,
       );
       setSaveStatus(saveErr ? 'error' : 'saved');
       if (!saveErr) showToast('✓ Backtest guardado');
@@ -269,8 +269,6 @@ export default function Home() {
                 const { error: saveErr } = await saveBacktest(
                   params,
                   runResult.results,
-                  runResult.entryPrice,
-                  runResult.currentPrice,
                   `${params.symbol} · ${params.days}d`,
                 );
                 if (!saveErr) showToast('✓ Backtest guardado automáticamente');
