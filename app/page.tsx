@@ -47,12 +47,13 @@ export default function Home() {
   } = useBacktest();
 
   const { user, loading, needsOnboarding, updateProfile, isConfigured } = useAuth();
-  const { saveBacktest } = useSupabaseSync(user);
+  const { saveBacktest, saveStrategy } = useSupabaseSync(user);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [nameError, setNameError] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -99,6 +100,14 @@ export default function Home() {
   }
 
   async function handleRun() {
+    const hasEmptyName = strategies.some((s) => s.name.trim().length === 0);
+    if (hasEmptyName) {
+      setNameError(true);
+      setTab('config');
+      setTimeout(() => setNameError(false), 3000);
+      return;
+    }
+    setNameError(false);
     await run();
     setTab('results');
   }
@@ -239,6 +248,11 @@ export default function Home() {
           {error && (
             <span className="text-xs font-mono text-[#ff5252]">✗ {error}</span>
           )}
+          {nameError && (
+            <span className="text-xs font-mono text-[#ff5252]">
+              ✗ Por favor asigna un nombre a todas las estrategias
+            </span>
+          )}
         </div>
 
         {/* ── WIZARD TAB ── */}
@@ -276,6 +290,10 @@ export default function Home() {
               onAdd={addStrategy}
               onUpdate={updateStrategy}
               onRemove={removeStrategy}
+              onSaveStrategy={saveStrategy}
+              user={user}
+              isConfigured={isConfigured}
+              highlightEmptyNames={nameError}
             />
           </div>
         )}

@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { BacktestParams, StratResult } from '@/types';
+import type { BacktestParams, StratResult, Strategy } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
 export function useSupabaseSync(user: User | null) {
@@ -14,10 +14,8 @@ export function useSupabaseSync(user: User | null) {
       currentPrice: number,
       name: string = 'Backtest',
     ) => {
-      console.log('saveBacktest called', { name, userId: user?.id });
       if (!user) return { error: new Error('Not authenticated') };
 
-      // Insert backtest record
       const { data: bt, error: btError } = await supabase
         .from('backtests')
         .insert({
@@ -39,10 +37,8 @@ export function useSupabaseSync(user: User | null) {
         .select()
         .single();
 
-      console.log('backtest insert result', JSON.stringify({ bt, btErr: btError }, null, 2));
       if (btError || !bt) return { error: btError };
 
-      // Insert result rows
       const rows = results.map((r) => ({
         backtest_id: bt.id,
         strategy_name: r.strategy.name,
@@ -59,11 +55,25 @@ export function useSupabaseSync(user: User | null) {
       }));
 
       const { error: resError } = await supabase.from('backtest_results').insert(rows);
-      console.log('results insert done', { resError });
       return { error: resError, backtestId: bt.id };
     },
     [user],
   );
+
+  const saveStrategy = useCallback(async (strategy: Strategy) => {
+    if (!user) return { error: new Error('Not authenticated') };
+    const { error } = await supabase.from('strategies').insert({
+      user_id: user.id,
+      name: strategy.name,
+      type: strategy.type,
+      color: strategy.color,
+      range_pct: strategy.rangePct,
+      abs_lo: strategy.absLo ?? null,
+      abs_hi: strategy.absHi ?? null,
+      compounding: strategy.compounding,
+    });
+    return { error };
+  }, [user]);
 
   const loadBacktests = useCallback(async () => {
     if (!user) return { data: [], error: null };
@@ -94,5 +104,5 @@ export function useSupabaseSync(user: User | null) {
     [user],
   );
 
-  return { saveBacktest, loadBacktests, deleteBacktest };
+  return { saveBacktest, saveStrategy, loadBacktests, deleteBacktest };
 }
