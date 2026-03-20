@@ -48,6 +48,7 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
       color: PRESET_COLORS[strategies.length % PRESET_COLORS.length],
       rangePct: 5,
       compounding: false,
+      compoundPct: 100,
     });
     setExpandedId(id);
   }
@@ -178,22 +179,45 @@ export default function StrategyBuilder({ strategies, onAdd, onUpdate, onRemove 
 
                   {/* Compounding */}
                   {s.type !== 'hold' && (
-                    <div className="col-span-2 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`comp-${s.id}`}
-                        checked={s.compounding}
-                        onChange={(e) =>
-                          onUpdate(s.id, { compounding: e.target.checked })
-                        }
-                        className="accent-[#c8f135] w-4 h-4 cursor-pointer"
-                      />
-                      <label
-                        htmlFor={`comp-${s.id}`}
-                        className="text-xs font-mono text-[#888] cursor-pointer"
-                      >
-                        Reinvertir fees en la posición
-                      </label>
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          id={`comp-${s.id}`}
+                          checked={s.compounding}
+                          onChange={(e) =>
+                            onUpdate(s.id, { compounding: e.target.checked })
+                          }
+                          className="accent-[#c8f135] w-4 h-4 cursor-pointer"
+                        />
+                        <label
+                          htmlFor={`comp-${s.id}`}
+                          className="text-xs font-mono text-[#888] cursor-pointer"
+                        >
+                          Reinvertir fees en la posición
+                        </label>
+                      </div>
+                      {s.compounding && (
+                        <div className="pl-6">
+                          <div className="flex justify-between items-center mb-1">
+                            <FieldLabel className="mb-0">% fees a reinvertir</FieldLabel>
+                            <span className="text-xs font-mono text-[#c8f135]">
+                              Reinvertir {s.compoundPct ?? 100}% · Retirar {100 - (s.compoundPct ?? 100)}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={10}
+                            max={100}
+                            step={10}
+                            value={s.compoundPct ?? 100}
+                            onChange={(e) =>
+                              onUpdate(s.id, { compoundPct: Number(e.target.value) })
+                            }
+                            className="w-full cursor-pointer h-1 rounded appearance-none bg-[#333] accent-[#c8f135]"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

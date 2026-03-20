@@ -35,6 +35,8 @@ export function useBacktest() {
   const run = useCallback(async (overrideStrategies?: Strategy[]) => {
     setIsLoading(true);
     setError(null);
+    setResults([]);
+    setCandles([]);
     try {
       const strats = overrideStrategies ?? strategies;
       const fetched = await fetchCandles(params.symbol, params.days);
@@ -90,9 +92,13 @@ export function useBacktest() {
     });
   }, []);
 
+  const resetParams = useCallback(() => {
+    setParams(DEFAULT_PARAMS);
+  }, []);
+
   return {
     params, strategies, results, candles,
     entryPrice, currentPrice, isLoading, error,
-    run, addStrategy, updateStrategy, removeStrategy, updateParams,
+    run, addStrategy, updateStrategy, removeStrategy, updateParams, resetParams,
   };
 }

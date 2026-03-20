@@ -18,6 +18,7 @@ export type Strategy = {
   absLo?: number;
   absHi?: number;
   compounding: boolean;
+  compoundPct?: number; // % of fees to reinvest (10-100, default 100)
 };
 
 export type SimConfig = {
@@ -39,6 +40,8 @@ export type SimPoint = {
   marketValue: number;
   ilDollar: number;
   rebalanced: boolean;
+  liquidFees: number;     // fees NOT reinvested (cumulative)
+  reinvestedFees: number; // fees reinvested into position (cumulative)
 };
 
 export type Metrics = {
@@ -51,6 +54,8 @@ export type Metrics = {
   annualAPR: number;
   totalRebalCost: number;
   netPnl: number;
+  liquidFees: number;
+  reinvestedFees: number;
 };
 
 export interface RebalanceEvent {

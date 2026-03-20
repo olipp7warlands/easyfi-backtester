@@ -57,6 +57,8 @@ export default function ResultsTable({
             <Th>Valor mercado</Th>
             <Th>IL ($)</Th>
             <Th>Fees ($)</Th>
+            <Th>Fees líq.</Th>
+            <Th>Fees reinv.</Th>
             <Th>APR diario</Th>
             <Th>PnL neto%</Th>
             <Th>%IL</Th>
@@ -76,7 +78,7 @@ export default function ResultsTable({
               ▶ Precio entrada
             </Td>
             <Td color="#ff8c42">{fmtPrice(entryPrice)}</Td>
-            {Array.from({ length: 13 }).map((_, i) => (
+            {Array.from({ length: 15 }).map((_, i) => (
               <td key={i} className="px-2 py-2 text-center">{DASH}</td>
             ))}
           </tr>
@@ -117,6 +119,12 @@ export default function ResultsTable({
                   {fmtUSD(-metrics.totalIL)}
                 </Td>
                 <Td color="#c8f135">{fmtUSD(metrics.totalFees)}</Td>
+                <Td color={metrics.liquidFees > 0 ? '#c8f135' : '#555'}>
+                  {fmtUSD(metrics.liquidFees)}
+                </Td>
+                <Td color={metrics.reinvestedFees > 0 ? '#e066ff' : '#555'}>
+                  {fmtUSD(metrics.reinvestedFees)}
+                </Td>
                 <Td color={colorForValue(metrics.dailyAPR)}>
                   {fmtPct(metrics.dailyAPR)}
                 </Td>
@@ -149,7 +157,7 @@ export default function ResultsTable({
               ■ Precio actual
             </Td>
             <Td color="#42a5f5">{fmtPrice(currentPrice)}</Td>
-            {Array.from({ length: 13 }).map((_, i) => (
+            {Array.from({ length: 15 }).map((_, i) => (
               <td key={i} className="px-2 py-2 text-center">{DASH}</td>
             ))}
           </tr>

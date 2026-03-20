@@ -55,7 +55,12 @@ export function simulateStrategy(
     rangeHi = bounds.hi;
   }
 
+  // Fraction of fees to reinvest (0 when not compounding)
+  const compoundFraction = strategy.compounding ? (strategy.compoundPct ?? 100) / 100 : 0;
+
   let feesAccum = 0;
+  let liquidFeesAccum = 0;
+  let reinvestedFeesAccum = 0;
   let effectiveCapital = capital;
   let totalRebalCost = 0;
   let hoursSinceLastRebal = 0;
@@ -75,8 +80,13 @@ export function simulateStrategy(
         ? calcFeePerCandle(effectiveCapital, tvl, dailyVol, feeTier, hoursPerCandle)
         : 0;
 
+    const feesToReinvest = feeCandle * compoundFraction;
+    const feesLiquid = feeCandle - feesToReinvest;
+
     feesAccum += feeCandle;
-    if (strategy.compounding) effectiveCapital += feeCandle;
+    liquidFeesAccum += feesLiquid;
+    reinvestedFeesAccum += feesToReinvest;
+    if (strategy.compounding) effectiveCapital += feesToReinvest;
 
     // IL
     const ilFactor = calcILFactor(p0, price);
@@ -129,7 +139,11 @@ export function simulateStrategy(
       else hoursSinceLastRebal += hoursPerCandle;
     }
 
-    points.push({ time: candle.time, price, inRange, feesAccum, dailyFees: feeCandle, marketValue, ilDollar, rebalanced });
+    points.push({
+      time: candle.time, price, inRange, feesAccum, dailyFees: feeCandle,
+      marketValue, ilDollar, rebalanced,
+      liquidFees: liquidFeesAccum, reinvestedFees: reinvestedFeesAccum,
+    });
   }
 
   return { points, entryPrice, totalRebalCost, rebalanceHistory };
@@ -146,6 +160,7 @@ export function computeMetrics(
       totalFees: 0, totalIL: 0, finalValue: capital,
       rebalCount: 0, pctInRange: 0, dailyAPR: 0,
       annualAPR: 0, totalRebalCost: 0, netPnl: 0,
+      liquidFees: 0, reinvestedFees: 0,
     };
   }
 
@@ -159,10 +174,13 @@ export function computeMetrics(
   const netPnl = finalValue - capital;
   const dailyAPR = days > 0 ? (totalFees / capital / days) * 100 : 0;
   const annualAPR = dailyAPR * 365;
+  const liquidFees = last.liquidFees;
+  const reinvestedFees = last.reinvestedFees;
 
   return {
     totalFees, totalIL, finalValue, rebalCount,
     pctInRange, dailyAPR, annualAPR, totalRebalCost, netPnl,
+    liquidFees, reinvestedFees,
   };
 }
 

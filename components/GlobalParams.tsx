@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, FieldLabel, Input, Select, RangeSlider, Button } from './ui';
+import { Box, FieldLabel, Input, Select, Button } from './ui';
 import { PAIRS, FEE_TIERS, NETWORKS } from '@/lib/constants';
 import { fmtUSDCompact } from '@/lib/format';
 import { fetchFromDefiLlama, fetchFromSubgraph } from '@/lib/poolData';
@@ -10,9 +10,10 @@ import type { BacktestParams, Network } from '@/types';
 interface Props {
   params: BacktestParams;
   onUpdate: (updates: Partial<BacktestParams>) => void;
+  onReset?: () => void;
 }
 
-export default function GlobalParams({ params, onUpdate }: Props) {
+export default function GlobalParams({ params, onUpdate, onReset }: Props) {
   const [loadingVol, setLoadingVol] = useState<'defi' | 'sub' | null>(null);
   const [volMsg, setVolMsg] = useState<string>('');
 
@@ -51,9 +52,16 @@ export default function GlobalParams({ params, onUpdate }: Props) {
 
   return (
     <Box>
-      <h3 className="text-sm font-mono font-bold text-[#c8f135] mb-4 uppercase tracking-wider">
-        Parámetros globales
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-mono font-bold text-[#c8f135] uppercase tracking-wider">
+          Parámetros globales
+        </h3>
+        {onReset && (
+          <Button size="sm" variant="ghost" onClick={onReset}>
+            ↺ Resetear
+          </Button>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         {/* Network — full width, first */}
@@ -89,29 +97,64 @@ export default function GlobalParams({ params, onUpdate }: Props) {
           />
         </div>
 
-        {/* Capital slider */}
+        {/* Capital slider + number input */}
         <div className="col-span-2">
-          <RangeSlider
-            label="Capital"
-            value={params.capital}
-            onChange={(v) => onUpdate({ capital: v })}
+          <div className="flex justify-between items-center mb-1">
+            <FieldLabel className="mb-0">Capital</FieldLabel>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-[#555]">
+                {fmtUSDCompact(params.capital)}
+              </span>
+              <input
+                type="number"
+                value={params.capital}
+                onChange={(e) =>
+                  onUpdate({ capital: Math.max(100, Number(e.target.value) || 100) })
+                }
+                className="w-24 bg-[#1a1a1a] border border-[#333] rounded px-2 py-0.5 text-xs font-mono text-[#c8f135] focus:outline-none focus:border-[#c8f135]"
+                min={100}
+                step={100}
+              />
+            </div>
+          </div>
+          <input
+            type="range"
             min={100}
             max={1_000_000}
             step={100}
-            displayValue={fmtUSDCompact(params.capital)}
+            value={params.capital}
+            onChange={(e) => onUpdate({ capital: Number(e.target.value) })}
+            className="w-full cursor-pointer h-1 rounded appearance-none bg-[#333] accent-[#c8f135]"
           />
         </div>
 
-        {/* Days slider */}
+        {/* Days slider + number input */}
         <div className="col-span-2">
-          <RangeSlider
-            label="Período del backtest"
-            value={params.days}
-            onChange={(v) => onUpdate({ days: v })}
+          <div className="flex justify-between items-center mb-1">
+            <FieldLabel className="mb-0">Período del backtest</FieldLabel>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-[#555]">{params.days} días</span>
+              <input
+                type="number"
+                value={params.days}
+                onChange={(e) =>
+                  onUpdate({ days: Math.min(365, Math.max(7, Number(e.target.value) || 7)) })
+                }
+                className="w-16 bg-[#1a1a1a] border border-[#333] rounded px-2 py-0.5 text-xs font-mono text-[#c8f135] focus:outline-none focus:border-[#c8f135]"
+                min={7}
+                max={365}
+                step={1}
+              />
+            </div>
+          </div>
+          <input
+            type="range"
             min={7}
             max={365}
             step={1}
-            displayValue={`${params.days} días`}
+            value={params.days}
+            onChange={(e) => onUpdate({ days: Number(e.target.value) })}
+            className="w-full cursor-pointer h-1 rounded appearance-none bg-[#333] accent-[#c8f135]"
           />
         </div>
 
@@ -205,14 +248,18 @@ export default function GlobalParams({ params, onUpdate }: Props) {
 
         {/* Rebalance interval */}
         <div className="col-span-2">
-          <RangeSlider
-            label="Intervalo de rebalanceo"
-            value={params.rebalHours}
-            onChange={(v) => onUpdate({ rebalHours: v })}
+          <div className="flex justify-between items-center mb-1">
+            <FieldLabel className="mb-0">Intervalo de rebalanceo</FieldLabel>
+            <span className="text-xs font-mono text-[#c8f135]">{params.rebalHours}h</span>
+          </div>
+          <input
+            type="range"
             min={1}
             max={24}
             step={1}
-            displayValue={`${params.rebalHours}h`}
+            value={params.rebalHours}
+            onChange={(e) => onUpdate({ rebalHours: Number(e.target.value) })}
+            className="w-full cursor-pointer h-1 rounded appearance-none bg-[#333] accent-[#c8f135]"
           />
         </div>
       </div>

@@ -14,6 +14,7 @@ export function useSupabaseSync(user: User | null) {
       currentPrice: number,
       name: string = 'Backtest',
     ) => {
+      console.log('saveBacktest called', { name, userId: user?.id });
       if (!user) return { error: new Error('Not authenticated') };
 
       // Insert backtest record
@@ -38,6 +39,7 @@ export function useSupabaseSync(user: User | null) {
         .select()
         .single();
 
+      console.log('backtest insert result', JSON.stringify({ bt, btErr: btError }, null, 2));
       if (btError || !bt) return { error: btError };
 
       // Insert result rows
@@ -57,6 +59,7 @@ export function useSupabaseSync(user: User | null) {
       }));
 
       const { error: resError } = await supabase.from('backtest_results').insert(rows);
+      console.log('results insert done', { resError });
       return { error: resError, backtestId: bt.id };
     },
     [user],
@@ -66,10 +69,20 @@ export function useSupabaseSync(user: User | null) {
     if (!user) return { data: [], error: null };
     const { data, error } = await supabase
       .from('backtests')
-      .select('*, backtest_results(*)')
+      .select(`
+        *,
+        backtest_results (
+          strategy_name,
+          strategy_type,
+          strategy_color,
+          annual_apr,
+          total_fees,
+          rebal_count
+        )
+      `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(50);
     return { data: data ?? [], error };
   }, [user]);
 

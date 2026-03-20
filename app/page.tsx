@@ -19,12 +19,16 @@ import { Button, SegmentedControl, Input, FieldLabel } from '@/components/ui';
 import StrategyConfigurator from '@/components/StrategyConfigurator';
 import AuthModal from '@/components/auth/AuthModal';
 import BacktestHistory from '@/components/BacktestHistory';
+import BacktestDashboard from '@/components/BacktestDashboard';
 import { useBacktest } from '@/hooks/useBacktest';
 import { useAuth } from '@/hooks/useAuth';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
+import type { BacktestParams } from '@/types';
+
+type Tab = 'config' | 'results' | 'wizard' | 'history';
 
 export default function Home() {
-  const [tab, setTab] = useState<'config' | 'results' | 'wizard'>('wizard');
+  const [tab, setTab] = useState<Tab>('wizard');
   const {
     params,
     strategies,
@@ -39,6 +43,7 @@ export default function Home() {
     updateStrategy,
     removeStrategy,
     updateParams,
+    resetParams,
   } = useBacktest();
 
   const { user, loading, needsOnboarding, updateProfile, isConfigured } = useAuth();
@@ -64,7 +69,7 @@ export default function Home() {
     if (user) setShowAuthModal(false);
   }, [user]);
 
-  // Set tab based on onboarding/auth status (runs after profile loads)
+  // Set tab based on onboarding/auth status
   useEffect(() => {
     if (loading) return;
     if (needsOnboarding) {
@@ -101,17 +106,35 @@ export default function Home() {
   async function handleSave(name: string) {
     if (!user || results.length === 0) return;
     setSaveStatus('saving');
-    const { error: saveErr } = await saveBacktest(
-      params, results, entryPrice, currentPrice, name,
-    );
-    setSaveStatus(saveErr ? 'error' : 'saved');
-    if (!saveErr) showToast('✓ Backtest guardado');
+    try {
+      const { error: saveErr } = await saveBacktest(
+        params, results, entryPrice, currentPrice, name,
+      );
+      setSaveStatus(saveErr ? 'error' : 'saved');
+      if (!saveErr) showToast('✓ Backtest guardado');
+    } catch (e) {
+      console.error('handleSave threw:', e);
+      setSaveStatus('error');
+    }
     setTimeout(() => setSaveStatus('idle'), 3000);
     setShowSaveModal(false);
   }
 
+  function handleLoadBacktest(loaded: BacktestParams) {
+    updateParams(loaded);
+    setTab('config');
+    showToast('✓ Backtest cargado — ajusta y re-ejecuta');
+  }
+
   const isOnboarding = isConfigured && needsOnboarding;
   const bannerIsOnboarding = isOnboarding && showBanner;
+
+  const tabOptions = [
+    { value: 'wizard', label: 'Configurador' },
+    { value: 'config', label: 'Configuración' },
+    { value: 'results', label: `Resultados${results.length > 0 ? ` (${results.length})` : ''}` },
+    ...(user && isConfigured ? [{ value: 'history', label: '📊 Mis Backtests' }] : []),
+  ];
 
   return (
     <div
@@ -128,11 +151,7 @@ export default function Home() {
       {showBanner && (
         <div
           className="px-6 py-3 flex items-center gap-4 border-b"
-          style={{
-            backgroundColor: '#0d1a00',
-            borderColor: '#c8f13533',
-            borderBottomWidth: 1,
-          }}
+          style={{ backgroundColor: '#0d1a00', borderColor: '#c8f13533', borderBottomWidth: 1 }}
         >
           <div className="flex-1">
             <span className="text-xs font-mono text-[#c8f135] font-bold mr-2">
@@ -179,13 +198,9 @@ export default function Home() {
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <SegmentedControl
             value={tab}
-            onChange={(v) => setTab(v as 'config' | 'results' | 'wizard')}
-            options={[
-              { value: 'wizard',  label: 'Configurador' },
-              { value: 'config',  label: 'Configuración' },
-              { value: 'results', label: `Resultados${results.length > 0 ? ` (${results.length})` : ''}` },
-            ]}
-            className="w-96"
+            onChange={(v) => setTab(v as Tab)}
+            options={tabOptions}
+            className="w-auto"
           />
 
           <Button
@@ -215,11 +230,7 @@ export default function Home() {
                   : '💾 Guardar backtest'}
               </Button>
             ) : (
-              <Button
-                variant="ghost"
-                size="lg"
-                onClick={() => setShowAuthModal(true)}
-              >
+              <Button variant="ghost" size="lg" onClick={() => setShowAuthModal(true)}>
                 💾 Guardar (inicia sesión)
               </Button>
             )
@@ -240,7 +251,6 @@ export default function Home() {
               addStrategy(strategy);
               const runResult = await run([...strategies, strategy]);
               setTab('results');
-              // Onboarding: auto-save + mark completed
               if (isOnboarding && runResult && user) {
                 const { error: saveErr } = await saveBacktest(
                   params,
@@ -260,7 +270,7 @@ export default function Home() {
         {/* ── CONFIG TAB ── */}
         {tab === 'config' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <GlobalParams params={params} onUpdate={updateParams} />
+            <GlobalParams params={params} onUpdate={updateParams} onReset={resetParams} />
             <StrategyBuilder
               strategies={strategies}
               onAdd={addStrategy}
@@ -291,11 +301,7 @@ export default function Home() {
                 </section>
 
                 <section>
-                  <PriceChart
-                    results={results}
-                    entryPrice={entryPrice}
-                    currentPrice={currentPrice}
-                  />
+                  <PriceChart results={results} entryPrice={entryPrice} currentPrice={currentPrice} />
                 </section>
 
                 <section>
@@ -317,17 +323,22 @@ export default function Home() {
                     <ComparisonBarChart results={results} />
                   </div>
                   <div className="flex flex-col gap-4">
-                    <PriceRangeChart
-                      results={results}
-                      entryPrice={entryPrice}
-                      currentPrice={currentPrice}
-                    />
+                    <PriceRangeChart results={results} entryPrice={entryPrice} currentPrice={currentPrice} />
                     <PnlChart results={results} capital={params.capital} />
                   </div>
                 </section>
               </>
             )}
           </div>
+        )}
+
+        {/* ── HISTORY TAB ── */}
+        {tab === 'history' && user && (
+          <BacktestDashboard
+            user={user}
+            onLoadBacktest={handleLoadBacktest}
+            onNewTest={() => setTab('config')}
+          />
         )}
       </main>
 
@@ -353,11 +364,7 @@ export default function Home() {
             </div>
             <div className="mb-4">
               <FieldLabel>Nombre</FieldLabel>
-              <Input
-                value={saveName}
-                onChange={setSaveName}
-                placeholder="Mi backtest ETH"
-              />
+              <Input value={saveName} onChange={setSaveName} placeholder="Mi backtest ETH" />
             </div>
             <div className="flex gap-2">
               <button
@@ -384,11 +391,7 @@ export default function Home() {
       {toastMsg && (
         <div
           className="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg font-mono text-xs"
-          style={{
-            backgroundColor: '#0d1a00',
-            color: '#c8f135',
-            border: '1px solid #2d3a0f',
-          }}
+          style={{ backgroundColor: '#0d1a00', color: '#c8f135', border: '1px solid #2d3a0f' }}
         >
           {toastMsg}
         </div>

@@ -69,10 +69,23 @@ function ConfigTab({ r }: { r: StratResult }) {
           {strategy.type === 'fixed' && strategy.absHi != null && (
             <StatRow label="Límite alto" value={fmtPrice(strategy.absHi)} />
           )}
-          <StatRow label="Compounding" value={strategy.compounding ? 'Sí' : 'No'} />
+          <StatRow
+            label="Compounding"
+            value={
+              !strategy.compounding
+                ? 'No'
+                : `Sí (${strategy.compoundPct ?? 100}% reinvertido)`
+            }
+          />
         </div>
         <div>
           <StatRow label="Total Fees" value={fmtUSD(metrics.totalFees)} color="#c8f135" />
+          {strategy.compounding && (strategy.compoundPct ?? 100) < 100 && (
+            <>
+              <StatRow label="Fees líquidos" value={fmtUSD(metrics.liquidFees)} color="#c8f135" />
+              <StatRow label="Fees reinvertidos" value={fmtUSD(metrics.reinvestedFees)} color="#e066ff" />
+            </>
+          )}
           <StatRow label="IL" value={fmtUSD(-metrics.totalIL)} color={colorForValue(-metrics.totalIL)} />
           <StatRow label="Rebalanceos" value={String(metrics.rebalCount)} />
           <StatRow label="% En rango" value={`${metrics.pctInRange.toFixed(1)}%`} color={pctInRangeColor} />
