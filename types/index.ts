@@ -18,7 +18,8 @@ export type Strategy = {
   absLo?: number;
   absHi?: number;
   compounding: boolean;
-  compoundPct?: number; // % of fees to reinvest (10-100, default 100)
+  compoundPct?: number;  // % of fees to reinvest (10-100, default 100)
+  rebalHours?: number;   // rebalance interval in hours for this strategy (default 4)
 };
 
 export type SimConfig = {

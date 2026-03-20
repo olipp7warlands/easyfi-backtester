@@ -59,8 +59,11 @@ export function useBacktest() {
   }, [params, strategies]);
 
   const addStrategy = useCallback((strategy: Strategy) => {
-    setStrategies((prev) => [...prev, strategy]);
-  }, []);
+    const s = strategy.rebalHours !== undefined
+      ? strategy
+      : { ...strategy, rebalHours: params.rebalHours };
+    setStrategies((prev) => [...prev, s]);
+  }, [params.rebalHours]);
 
   const updateStrategy = useCallback((id: string, updates: Partial<Strategy>) => {
     setStrategies((prev) =>

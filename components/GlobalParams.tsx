@@ -249,7 +249,7 @@ export default function GlobalParams({ params, onUpdate, onReset }: Props) {
         {/* Rebalance interval */}
         <div className="col-span-2">
           <div className="flex justify-between items-center mb-1">
-            <FieldLabel className="mb-0">Intervalo de rebalanceo</FieldLabel>
+            <FieldLabel className="mb-0">Intervalo de rebalanceo por defecto (para nuevas estrategias)</FieldLabel>
             <span className="text-xs font-mono text-[#c8f135]">{params.rebalHours}h</span>
           </div>
           <input

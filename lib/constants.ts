@@ -9,6 +9,7 @@ export const DEFAULT_STRATEGIES: Strategy[] = [
     rangePct: 100,
     compounding: false,
     compoundPct: 100,
+    rebalHours: 4,
   },
   {
     id: 'fixed-5',
@@ -18,6 +19,7 @@ export const DEFAULT_STRATEGIES: Strategy[] = [
     rangePct: 5,
     compounding: false,
     compoundPct: 100,
+    rebalHours: 4,
   },
   {
     id: 'fixed-7',
@@ -27,6 +29,7 @@ export const DEFAULT_STRATEGIES: Strategy[] = [
     rangePct: 7,
     compounding: false,
     compoundPct: 100,
+    rebalHours: 4,
   },
   {
     id: 'dyn-5',
@@ -36,6 +39,7 @@ export const DEFAULT_STRATEGIES: Strategy[] = [
     rangePct: 5,
     compounding: true,
     compoundPct: 100,
+    rebalHours: 4,
   },
   {
     id: 'scalp-2',
@@ -45,6 +49,7 @@ export const DEFAULT_STRATEGIES: Strategy[] = [
     rangePct: 2,
     compounding: true,
     compoundPct: 100,
+    rebalHours: 4,
   },
 ];
 

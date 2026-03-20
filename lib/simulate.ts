@@ -44,7 +44,8 @@ export function simulateStrategy(
   if (candles.length === 0)
     return { points: [], entryPrice: 0, totalRebalCost: 0, rebalanceHistory: [] };
 
-  const { capital, feeTier, dailyVol, tvl, gasCostPerRebal, slippage, rebalHours } = config;
+  const { capital, feeTier, dailyVol, tvl, gasCostPerRebal, slippage } = config;
+  const rebalHours = strategy.rebalHours ?? config.rebalHours;
   const entryPrice = candles[0].close;
 
   let rangeLo = 0;
