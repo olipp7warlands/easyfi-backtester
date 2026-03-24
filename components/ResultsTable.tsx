@@ -127,6 +127,20 @@ export default function ResultsTable({
                 </Td>
                 <Td color={colorForValue(metrics.dailyAPR)}>
                   {fmtPct(metrics.dailyAPR)}
+                  {strategy.type === 'fixed' && metrics.pctInRange < 70 && metrics.pctInRange > 0 && (
+                    <>
+                      {' '}
+                      <span
+                        title={`Solo activo el ${metrics.pctInRange.toFixed(1)}% del tiempo — el precio salió del rango`}
+                        style={{ color: '#ff8c42', cursor: 'help' }}
+                      >
+                        ⚠
+                      </span>
+                      <span className="text-[#555]">
+                        {' '}(≈{fmtPct(metrics.dailyAPR / (metrics.pctInRange / 100))} en rango)
+                      </span>
+                    </>
+                  )}
                 </Td>
                 <Td color={colorForValue(netPnlPct)}>{fmtPct(netPnlPct)}</Td>
                 <Td color={colorForValue(-ilPct)}>{fmtPct(-ilPct)}</Td>

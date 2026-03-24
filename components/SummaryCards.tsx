@@ -273,6 +273,15 @@ export default function SummaryCards({ results, candles, capital }: Props) {
                 value={`${metrics.pctInRange.toFixed(1)}%`}
                 color={pctInRangeColor}
               />
+              {/* Range status indicator */}
+              <div className="flex justify-end py-0.5">
+                {metrics.pctInRange < 60 ? (
+                  <span className="text-[10px] font-mono" style={{ color: '#ff5252' }}>⚠ Fuera de rango</span>
+                ) : metrics.pctInRange < 80 ? (
+                  <span className="text-[10px] font-mono" style={{ color: '#ff8c42' }}>~ Parcialmente activo</span>
+                ) : (
+                  <span className="text-[10px] font-mono" style={{ color: '#c8f135' }}>✓ Activo</span>
+                )}</div>
             </div>
 
             {/* P3: "Ver más" button at the bottom of the card */}
@@ -304,6 +313,21 @@ export default function SummaryCards({ results, candles, capital }: Props) {
                 {/* P4: Narrative with labelled sections */}
                 {narrative && (
                   <div className="px-4 py-3 bg-[#0a0a0a] border-b border-[#1a1a1a]">
+                    {/* Out-of-range warning for fixed strategies */}
+                    {strategy.type === 'fixed' && metrics.pctInRange < 60 && metrics.pctInRange > 0 && (
+                      <div
+                        className="text-xs font-mono leading-relaxed mb-3 pb-3 border-b px-3 py-2 rounded"
+                        style={{ color: '#ff8c42', borderColor: '#ff8c4244', backgroundColor: '#1a0d00' }}
+                      >
+                        ⚠ El precio salió del rango el{' '}
+                        <strong>{(100 - metrics.pctInRange).toFixed(1)}%</strong> del tiempo.
+                        Con rango dinámico habrías generado ~
+                        <strong>
+                          {fmtUSD(metrics.totalFees / (metrics.pctInRange / 100) - metrics.totalFees)}
+                        </strong>{' '}
+                        más en fees.
+                      </div>
+                    )}
                     <div className="text-[10px] font-mono text-[#555] uppercase tracking-widest mb-1">
                       💡 Qué pasó
                     </div>

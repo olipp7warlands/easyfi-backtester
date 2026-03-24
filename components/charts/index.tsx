@@ -43,11 +43,14 @@ export function PriceChart({
     const pct = r.strategy.rangePct / 100;
     const lo = r.strategy.absLo ?? entryPrice * (1 - pct);
     const hi = r.strategy.absHi ?? entryPrice * (1 + pct);
+    const outOfRange = r.strategy.type === 'fixed' && (currentPrice < lo || currentPrice > hi);
+    const rangeColor = outOfRange ? '#ff5252' : r.strategy.color;
     return [
-      <ReferenceLine key={`lo-${r.strategy.id}`} y={lo} stroke={r.strategy.color}
-        strokeDasharray="3 5" strokeOpacity={0.65} strokeWidth={1} />,
-      <ReferenceLine key={`hi-${r.strategy.id}`} y={hi} stroke={r.strategy.color}
-        strokeDasharray="3 5" strokeOpacity={0.65} strokeWidth={1} />,
+      <ReferenceLine key={`lo-${r.strategy.id}`} y={lo} stroke={rangeColor}
+        strokeDasharray="3 5" strokeOpacity={outOfRange ? 1 : 0.65} strokeWidth={outOfRange ? 1.5 : 1}
+        label={outOfRange ? { value: 'FUERA DE RANGO', fill: '#ff5252', fontSize: 8, fontFamily: 'Courier New', position: 'insideBottomLeft' } : undefined} />,
+      <ReferenceLine key={`hi-${r.strategy.id}`} y={hi} stroke={rangeColor}
+        strokeDasharray="3 5" strokeOpacity={outOfRange ? 1 : 0.65} strokeWidth={outOfRange ? 1.5 : 1} />,
     ];
   });
 
@@ -387,20 +390,30 @@ export function PriceRangeChart({
                 r.strategy.absHi !== undefined
                   ? r.strategy.absHi
                   : entryPrice * (1 + pct);
+              const outOfRange =
+                r.strategy.type === 'fixed' && (currentPrice < lo || currentPrice > hi);
+              const rangeColor = outOfRange ? '#ff5252' : r.strategy.color;
               return [
                 <ReferenceLine
                   key={`lo-${r.strategy.id}`}
                   y={lo}
-                  stroke={r.strategy.color}
+                  stroke={rangeColor}
                   strokeDasharray="2 4"
-                  strokeOpacity={0.7}
+                  strokeOpacity={outOfRange ? 1 : 0.7}
+                  strokeWidth={outOfRange ? 1.5 : 1}
+                  label={
+                    outOfRange
+                      ? { value: 'FUERA DE RANGO', fill: '#ff5252', fontSize: 8, fontFamily: 'Courier New', position: 'insideBottomLeft' }
+                      : undefined
+                  }
                 />,
                 <ReferenceLine
                   key={`hi-${r.strategy.id}`}
                   y={hi}
-                  stroke={r.strategy.color}
+                  stroke={rangeColor}
                   strokeDasharray="2 4"
-                  strokeOpacity={0.7}
+                  strokeOpacity={outOfRange ? 1 : 0.7}
+                  strokeWidth={outOfRange ? 1.5 : 1}
                 />,
               ];
             })}
