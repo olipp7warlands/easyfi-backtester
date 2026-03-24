@@ -20,12 +20,13 @@ import StrategyConfigurator from '@/components/StrategyConfigurator';
 import AuthModal from '@/components/auth/AuthModal';
 import BacktestHistory from '@/components/BacktestHistory';
 import BacktestDashboard from '@/components/BacktestDashboard';
+import ScenarioSimulator from '@/components/ScenarioSimulator';
 import { useBacktest } from '@/hooks/useBacktest';
 import { useAuth } from '@/hooks/useAuth';
 import { useSupabaseSync } from '@/hooks/useSupabaseSync';
 import type { BacktestParams } from '@/types';
 
-type Tab = 'config' | 'results' | 'wizard' | 'history';
+type Tab = 'config' | 'results' | 'wizard' | 'history' | 'simulator';
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>('wizard');
@@ -142,6 +143,7 @@ export default function Home() {
     { value: 'wizard', label: 'Configurador' },
     { value: 'config', label: 'Configuración' },
     { value: 'results', label: `Resultados${results.length > 0 ? ` (${results.length})` : ''}` },
+    { value: 'simulator', label: '🔮 Simulador' },
     ...(user && isConfigured ? [{ value: 'history', label: '📊 Mis Backtests' }] : []),
   ];
 
@@ -346,6 +348,24 @@ export default function Home() {
               </>
             )}
           </div>
+        )}
+
+        {/* ── SIMULATOR TAB ── */}
+        {tab === 'simulator' && (
+          <ScenarioSimulator
+            capital={params.capital}
+            feeTier={params.feeTier}
+            dailyVol={params.dailyVol}
+            tvl={params.tvl}
+            lastBacktestApr={
+              results.length > 0
+                ? Math.max(...results.map((r) => r.metrics.dailyAPR))
+                : undefined
+            }
+            currentPrice={
+              candles.length > 0 ? candles[candles.length - 1].close : undefined
+            }
+          />
         )}
 
         {/* ── HISTORY TAB ── */}
