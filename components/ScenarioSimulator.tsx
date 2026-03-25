@@ -418,13 +418,23 @@ export default function ScenarioSimulator({
             <Input
               type="number"
               value={annualApr}
-              onChange={(v) => setAnnualApr(Math.max(0.01, Number(v)))}
-              min={0.01}
-              max={10000}
+              onChange={(v) => setAnnualApr(Math.max(1, Number(v)))}
+              min={1}
+              max={500}
               step={0.1}
             />
             <p className="text-xs font-mono text-[#444] mt-1">
-              ≈ {fmtPct(annualApr)} APR anual · {fmtPct(monthlyApr)} mensual
+              ≈ {fmtPct(annualApr)} APR anual · {fmtPct(monthlyApr)} mensual · {fmtPct(dailyApr)} diario
+            </p>
+            {annualApr > 200 && (
+              <p className="text-xs font-mono mt-1" style={{ color: '#ff8c42' }}>
+                ⚠ APR muy alto — verifica que es % anual, no diario
+              </p>
+            )}
+            <p className="text-xs font-mono text-[#333] mt-1">
+              Introduce el APR anual esperado del pool.<br />
+              Pools ETH-USDC típicos: 15-50% anual.<br />
+              Puedes obtenerlo del backtest histórico.
             </p>
           </div>
 
