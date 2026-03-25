@@ -12,7 +12,7 @@ import {
   ReferenceLine,
   Legend,
 } from 'recharts';
-import { Box, FieldLabel, Input, RangeSlider } from '@/components/ui';
+import { Box, Button, FieldLabel, Input, RangeSlider, Select } from '@/components/ui';
 import { fmtUSD, fmtPct } from '@/lib/format';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -41,6 +41,25 @@ interface SimResult {
   capitalTotal: number;   // at static price
   apr: number;
   roi: number;
+}
+
+interface RebalanceStep {
+  segmento: number;
+  precioInicio: number;
+  precioFin: number;
+  ilSegmento: number;
+  capitalAntes: number;
+  capitalDespues: number;
+  feesSegmento: number;
+  gasSegmento: number;
+}
+
+interface CustomScenarioResult {
+  capitalFinal: number;
+  feesTotales: number;
+  gasTotales: number;
+  ilTotalFactor: number;
+  rebalanceHistory: RebalanceStep[];
 }
 
 // ─── Math ────────────────────────────────────────────────────────────────────
@@ -120,6 +139,59 @@ function findBreakEven(
   return (lo + hi) / 2;
 }
 
+function simulateCustomScenario(
+  capital: number,
+  p0: number,
+  pMin: number,
+  pFinal: number,
+  aprAnual: number,
+  gasUSD: number,
+  nRebalanceos: number,
+): CustomScenarioResult {
+  const dailyRate = aprAnual / 100 / 365;
+  const daysPerSegment = 30 / Math.max(nRebalanceos, 1);
+  let currentCapital = capital;
+  let feesTotales = 0;
+  let gasTotales = 0;
+  const rebalanceHistory: RebalanceStep[] = [];
+
+  // Fase 1 — Bajada de p0 a pMin en N segmentos
+  for (let i = 0; i < nRebalanceos; i++) {
+    const segStart = p0 + (pMin - p0) * (i / nRebalanceos);
+    const segEnd   = p0 + (pMin - p0) * ((i + 1) / nRebalanceos);
+    const il = ilFactor(segStart, Math.max(segEnd, 0.001));
+    const fees = currentCapital * dailyRate * daysPerSegment;
+    const capitalAntes = currentCapital;
+    currentCapital = capitalAntes * il + fees - gasUSD;
+    feesTotales += fees;
+    gasTotales += gasUSD;
+    rebalanceHistory.push({
+      segmento: i + 1,
+      precioInicio: segStart,
+      precioFin: segEnd,
+      ilSegmento: il,
+      capitalAntes,
+      capitalDespues: currentCapital,
+      feesSegmento: fees,
+      gasSegmento: gasUSD,
+    });
+  }
+
+  // Fase 2 — Recuperación de pMin a pFinal
+  const ilRecovery = ilFactor(Math.max(pMin, 0.001), Math.max(pFinal, 0.001));
+  const feesRecovery = currentCapital * dailyRate * 30;
+  currentCapital = currentCapital * ilRecovery + feesRecovery;
+  feesTotales += feesRecovery;
+
+  return {
+    capitalFinal: currentCapital,
+    feesTotales,
+    gasTotales,
+    ilTotalFactor: ilFactor(p0, Math.max(pFinal, 0.001)),
+    rebalanceHistory,
+  };
+}
+
 function simulateWithPriceMove(
   capital: number,
   dailyAprPct: number,
@@ -184,6 +256,17 @@ export default function ScenarioSimulator({
     { id: newId(), label: '-25%', changePct: -25 },
     { id: newId(), label: '-50%', changePct: -50 },
   ]);
+
+  // ── Sección 5 — estado ────────────────────────────────────────────────────
+  const [sc5PrecioInicial, setSc5PrecioInicial] = useState(currentPrice ?? 0);
+  const [sc5PrecioMinimo, setSc5PrecioMinimo]   = useState(0);
+  const [sc5PrecioFinal, setSc5PrecioFinal]     = useState(currentPrice ?? 0);
+  const [sc5Rango, setSc5Rango]                 = useState(10);
+  const [sc5FeeTier, setSc5FeeTier]             = useState('0.0005');
+  const [sc5AprAnual, setSc5AprAnual]           = useState(defaultAnnualApr);
+  const [sc5GasUSD, setSc5GasUSD]               = useState(10);
+  const [sc5NRebalanceos, setSc5NRebalanceos]   = useState(4);
+  const [sc5Result, setSc5Result]               = useState<CustomScenarioResult | null>(null);
 
   // Derived rates
   const dailyApr = annualApr / 365;
@@ -283,6 +366,26 @@ export default function ScenarioSimulator({
     if (scenarios.some((s) => s.changePct === pct)) return;
     const label = pct === 0 ? 'Sin cambio' : pct > 0 ? `+${pct}%` : `${pct}%`;
     setScenarios((prev) => [...prev, { id: newId(), label, changePct: pct }]);
+  }
+
+  // ── Sección 5 — handler ──────────────────────────────────────────────────
+
+  function handleSimular() {
+    const p0s  = sc5PrecioInicial > 0 ? sc5PrecioInicial : 1;
+    const pMin = sc5PrecioMinimo  > 0 ? sc5PrecioMinimo  : 1;
+    const pFin = sc5PrecioFinal   > 0 ? sc5PrecioFinal   : 1;
+    const result = simulateCustomScenario(capital, p0s, pMin, pFin, sc5AprAnual, sc5GasUSD, sc5NRebalanceos);
+    setSc5Result(result);
+
+    // Verificación con el ejemplo del usuario
+    const test = simulateCustomScenario(1000, 3000, 2250, 3000, 40, 10, 4);
+    console.log('=== Verificación Escenario 5 ===');
+    console.log('Inputs: capital=1000, p0=3000, pMin=2250, pFinal=3000, APR=40%, gas=$10, nRebal=4');
+    console.log('capitalFinal:', test.capitalFinal.toFixed(2), '| feesTotales:', test.feesTotales.toFixed(2), '| gasTotales:', test.gasTotales.toFixed(2));
+    test.rebalanceHistory.forEach((s) =>
+      console.log(`  Seg ${s.segmento}: $${s.precioInicio.toFixed(0)}→$${s.precioFin.toFixed(0)} | IL=${s.ilSegmento.toFixed(4)} | cap: $${s.capitalAntes.toFixed(2)}→$${s.capitalDespues.toFixed(2)} | fees: $${s.feesSegmento.toFixed(2)}`)
+    );
+    console.log('================================');
   }
 
   // ── Break-even row renderer ───────────────────────────────────────────────
@@ -778,6 +881,195 @@ export default function ScenarioSimulator({
           <p className="text-xs font-mono text-[#444] mt-2">
             Líneas punteadas: LP 0% compound bajo precio de cada escenario (máx. 3)
           </p>
+        )}
+      </Box>
+
+      {/* ── Section 5: Simulación de escenario personalizado ── */}
+      <Box>
+        <SectionTitle>5 — Simulación de escenario personalizado</SectionTitle>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* ── Panel izquierdo: inputs ── */}
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <FieldLabel>Precio inicial ($)</FieldLabel>
+                <Input type="number" value={sc5PrecioInicial} onChange={(v) => setSc5PrecioInicial(Math.max(0, Number(v)))} min={0} step={10} />
+              </div>
+              <div>
+                <FieldLabel>Precio mínimo / valle ($)</FieldLabel>
+                <Input type="number" value={sc5PrecioMinimo} onChange={(v) => setSc5PrecioMinimo(Math.max(0, Number(v)))} min={0} step={10} />
+              </div>
+              <div>
+                <FieldLabel>Precio final ($)</FieldLabel>
+                <Input type="number" value={sc5PrecioFinal} onChange={(v) => setSc5PrecioFinal(Math.max(0, Number(v)))} min={0} step={10} />
+              </div>
+              <div>
+                <FieldLabel>Rango inicial ±%</FieldLabel>
+                <Input type="number" value={sc5Rango} onChange={(v) => setSc5Rango(Math.max(0, Number(v)))} min={0} max={100} step={1} />
+                <p className="text-xs font-mono text-[#333] mt-1">Solo informativo</p>
+              </div>
+              <div>
+                <FieldLabel>Fee tier</FieldLabel>
+                <Select
+                  value={sc5FeeTier}
+                  onChange={setSc5FeeTier}
+                  options={[
+                    { value: '0.0001', label: '0.01% — Stable' },
+                    { value: '0.0005', label: '0.05% — Standard' },
+                    { value: '0.003',  label: '0.30% — ETH/stable' },
+                    { value: '0.01',   label: '1.00% — Exotic' },
+                  ]}
+                />
+              </div>
+              <div>
+                <FieldLabel>APR anual estimado (%)</FieldLabel>
+                <Input type="number" value={sc5AprAnual} onChange={(v) => setSc5AprAnual(Math.max(0.01, Number(v)))} min={0.01} max={500} step={0.1} />
+              </div>
+              <div>
+                <FieldLabel>Gas por rebalanceo ($)</FieldLabel>
+                <Input type="number" value={sc5GasUSD} onChange={(v) => setSc5GasUSD(Math.max(0, Number(v)))} min={0} step={1} />
+              </div>
+              <div>
+                <FieldLabel>Capital (pre-relleno)</FieldLabel>
+                <Input type="number" value={capital} onChange={() => {}} />
+                <p className="text-xs font-mono text-[#333] mt-1">Editar en parámetros</p>
+              </div>
+            </div>
+            <div>
+              <RangeSlider
+                label="Nº de rebalanceos durante la bajada"
+                value={sc5NRebalanceos}
+                onChange={setSc5NRebalanceos}
+                min={1}
+                max={10}
+                displayValue={`${sc5NRebalanceos} rebalanceo${sc5NRebalanceos !== 1 ? 's' : ''}`}
+              />
+            </div>
+            <Button onClick={handleSimular} variant="primary" size="md" className="mt-2 w-full">
+              ▶ Simular escenario
+            </Button>
+          </div>
+
+          {/* ── Panel derecho: resultados ── */}
+          {sc5Result ? (() => {
+            const { capitalFinal, feesTotales, gasTotales, ilTotalFactor } = sc5Result;
+            const ilLoss = capital * (1 - ilTotalFactor);
+            const delta  = capitalFinal - capital;
+            const p0s    = sc5PrecioInicial > 0 ? sc5PrecioInicial : 1;
+            const be     = findBreakEven(capital, capitalFinal, 0, p0s);
+            const beRef  = sc5PrecioFinal > 0 ? sc5PrecioFinal : p0s;
+
+            return (
+              <div className="flex flex-col gap-4">
+
+                {/* 2×2 metric grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Valor final', val: fmtUSD(capitalFinal), color: positiveColor(capitalFinal, capital) },
+                    { label: 'Resultado vs inicial', val: `${delta >= 0 ? '+' : ''}${fmtPct((delta / capital) * 100)}`, color: positiveColor(capitalFinal, capital) },
+                    { label: 'Fees totales', val: fmtUSD(feesTotales), color: '#c8f135' },
+                    { label: 'Gas total', val: `−${fmtUSD(gasTotales)}`, color: '#ff8c42' },
+                  ].map(({ label, val, color }) => (
+                    <div key={label} className="bg-[#0d0d0d] border border-[#222] rounded p-3">
+                      <p className="text-xs font-mono text-[#555] uppercase tracking-wider mb-1">{label}</p>
+                      <p className="text-lg font-mono font-bold" style={{ color }}>{val}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Breakdown table */}
+                <table className="w-full text-xs font-mono border-collapse">
+                  <tbody>
+                    {[
+                      { label: 'Capital inicial',         val: fmtUSD(capital),       color: '#ccc' },
+                      { label: 'IL total (factor)',        val: `×${ilTotalFactor.toFixed(4)} (−${fmtUSD(ilLoss)})`, color: '#ff5252' },
+                      { label: 'Gas total',               val: `−${fmtUSD(gasTotales)}`, color: '#ff8c42' },
+                      { label: 'Fees generadas',          val: `+${fmtUSD(feesTotales)}`, color: '#c8f135' },
+                      { label: '─────────────────',       val: '──────────', color: '#333' },
+                      { label: 'Valor final',             val: fmtUSD(capitalFinal), color: positiveColor(capitalFinal, capital) },
+                      { label: 'Diferencia vs inicial',   val: `${delta >= 0 ? '+' : ''}${fmtUSD(delta)}`, color: positiveColor(capitalFinal, capital) },
+                    ].map(({ label, val, color }, i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-[#0d0d0d]' : ''}>
+                        <td className="px-3 py-2 text-[#666]">{label}</td>
+                        <td className="px-3 py-2 text-right" style={{ color }}>{val}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Break-even */}
+                <div className="bg-[#0d0d0d] border border-[#222] rounded p-3">
+                  <p className="text-xs font-mono text-[#555] uppercase tracking-wider mb-2">Break-even ETH price</p>
+                  {capitalFinal >= capital ? (
+                    <p className="text-sm font-mono font-bold" style={{ color: '#c8f135' }}>✓ Posición en beneficio — no necesitas break-even</p>
+                  ) : be === null ? (
+                    <p className="text-sm font-mono text-[#555]">— No recuperable con movimiento de precio</p>
+                  ) : be === 0 ? (
+                    <p className="text-sm font-mono" style={{ color: '#c8f135' }}>✓ Fees cubren el capital</p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-mono font-bold" style={{ color: beRef >= be ? '#c8f135' : '#ff8c42' }}>
+                        ETH ≥ {fmtUSD(be)}
+                        <span className="ml-2 font-normal text-[#555]">
+                          ({fmtPct(((be - p0s) / p0s) * 100)} desde precio inicial)
+                        </span>
+                      </p>
+                      {beRef < be && (
+                        <p className="text-xs font-mono mt-1" style={{ color: '#ff5252' }}>
+                          Faltan {fmtUSD(be - beRef)} ({fmtPct(((be - beRef) / beRef) * 100)}) para cubrir
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+              </div>
+            );
+          })() : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-xs font-mono text-[#444]">Configura los parámetros y pulsa ▶ Simular escenario</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Tabla de rebalanceos ── */}
+        {sc5Result && sc5Result.rebalanceHistory.length > 0 && (
+          <div className="mt-6">
+            <p className="text-xs font-mono text-[#555] uppercase tracking-wider mb-2">Historial de rebalanceos (fase 1 — bajada)</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-mono border-collapse">
+                <thead>
+                  <tr>
+                    {['#', 'Precio inicio', 'Precio fin', 'IL segmento', 'Capital antes', 'Fees', 'Gas', 'Capital tras rebal'].map((h, i) => (
+                      <th key={i} className="px-3 py-2 text-[#555] uppercase tracking-wider font-normal border-b border-[#222]" style={{ textAlign: i === 0 ? 'left' : 'right' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sc5Result.rebalanceHistory.map((s, ri) => (
+                    <tr key={ri} className={ri % 2 === 0 ? 'bg-[#0d0d0d]' : ''}>
+                      <td className="px-3 py-2 text-[#666]">{s.segmento}</td>
+                      <td className="px-3 py-2 text-right text-[#ccc]">{fmtUSD(s.precioInicio)}</td>
+                      <td className="px-3 py-2 text-right text-[#ccc]">{fmtUSD(s.precioFin)}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: '#ff5252' }}>
+                        −{fmtPct((1 - s.ilSegmento) * 100)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-[#888]">{fmtUSD(s.capitalAntes)}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: '#c8f135' }}>+{fmtUSD(s.feesSegmento)}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: '#ff8c42' }}>−{fmtUSD(s.gasSegmento)}</td>
+                      <td className="px-3 py-2 text-right font-bold" style={{ color: positiveColor(s.capitalDespues, s.capitalAntes) }}>
+                        {fmtUSD(s.capitalDespues)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </Box>
     </div>
