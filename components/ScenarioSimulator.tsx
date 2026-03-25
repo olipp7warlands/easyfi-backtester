@@ -120,6 +120,27 @@ function findBreakEven(
   return (lo + hi) / 2;
 }
 
+function simulateWithPriceMove(
+  capital: number,
+  dailyAprPct: number,
+  days: number,
+  p0: number,
+  p1: number,
+  compoundPct: number,
+): number {
+  if (days === 0) return capital * ilFactor(p0, Math.max(p1, 0.001));
+  const rate = dailyAprPct / 100;
+  let capitalEfectivo = capital;
+  let feesRetirados = 0;
+  for (let dia = 1; dia <= days; dia++) {
+    const feeDia = capitalEfectivo * rate;
+    capitalEfectivo += feeDia * (compoundPct / 100);
+    feesRetirados += feeDia * (1 - compoundPct / 100);
+  }
+  const ilFinal = ilFactor(p0, Math.max(p1, 0.001));
+  return capitalEfectivo * ilFinal + feesRetirados;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -207,22 +228,6 @@ export default function ScenarioSimulator({
   // ── Chart data ────────────────────────────────────────────────────────────
 
   const chartData = useMemo(() => {
-    const rate = dailyApr / 100;
-
-    // Pre-simulate 50% compound day-by-day, tracking LP capital and withdrawn separately
-    const cap50arr = new Array<number>(days + 1);
-    const w50arr = new Array<number>(days + 1);
-    cap50arr[0] = capital;
-    w50arr[0] = 0;
-    let c50 = capital, w50 = 0;
-    for (let d = 1; d <= days; d++) {
-      const df = c50 * rate;
-      c50 += df * 0.5;
-      w50 += df * 0.5;
-      cap50arr[d] = c50;
-      w50arr[d] = w50;
-    }
-
     const chartScenarios = scenarios.slice(0, 3);
 
     return Array.from({ length: months + 1 }, (_, m) => {
@@ -232,16 +237,14 @@ export default function ScenarioSimulator({
       // Linearly interpolate price from entry to final
       const priceAtM = p0 + (finalPrice - p0) * frac;
       const safeP = Math.max(priceAtM, 0.001);
-      const il_m = ilFactor(p0, safeP);
 
       // Hold value tracks price
       const holdVal = capital * (safeP / p0);
 
-      // LP values with IL applied at interpolated price
-      const c0_m = capital * il_m + capital * rate * d;
-      const c50_m = cap50arr[d] * il_m + w50arr[d];
-      const cap100_m = capital * Math.pow(1 + rate, d);
-      const c100_m = cap100_m * il_m;
+      // LP values using simulateWithPriceMove (IL applied correctly over compounded capital)
+      const c0_m   = simulateWithPriceMove(capital, dailyApr, d, p0, safeP, 0);
+      const c50_m  = simulateWithPriceMove(capital, dailyApr, d, p0, safeP, 50);
+      const c100_m = simulateWithPriceMove(capital, dailyApr, d, p0, safeP, 100);
 
       const point: Record<string, number> = {
         month: m,
@@ -255,8 +258,7 @@ export default function ScenarioSimulator({
       chartScenarios.forEach((sc, si) => {
         const p1_sc = p0 * (1 + sc.changePct / 100);
         const priceAtM_sc = p0 + (p1_sc - p0) * frac;
-        const il_sc = ilFactor(p0, Math.max(priceAtM_sc, 0.001));
-        point[`sc${si}`] = capital * il_sc + capital * rate * d;
+        point[`sc${si}`] = simulateWithPriceMove(capital, dailyApr, d, p0, Math.max(priceAtM_sc, 0.001), 0);
       });
 
       return point;
@@ -635,11 +637,15 @@ export default function ScenarioSimulator({
                 <tbody>
                   {scenarios.map((sc, ri) => {
                     const p1 = p0 * (1 + sc.changePct / 100);
-                    const il_sc = ilFactor(p0, Math.max(p1, 0.001));
                     const holdV = capital * (1 + sc.changePct / 100);
-                    const v0 = r0.capitalFinalLP * il_sc + r0.feesWithdrawn;
-                    const v50 = r50.capitalFinalLP * il_sc + r50.feesWithdrawn;
-                    const v100 = r100.capitalFinalLP * il_sc + r100.feesWithdrawn;
+                    const v0   = simulateWithPriceMove(capital, dailyApr, days, p0, p1, 0);
+                    const v50  = simulateWithPriceMove(capital, dailyApr, days, p0, p1, 50);
+                    const v100 = simulateWithPriceMove(capital, dailyApr, days, p0, p1, 100);
+                    if (sc.changePct === 0) {
+                      console.log('Verificación escenario 0%:');
+                      console.log('  0% compound:', v0.toFixed(2), '(esperado: capital +', (capital * dailyApr / 100 * days).toFixed(2), 'en fees)');
+                      console.log('  Hold:', holdV.toFixed(2), '(esperado:', capital.toFixed(2), ')');
+                    }
                     return (
                       <tr key={sc.id} className={ri % 2 === 0 ? 'bg-[#0d0d0d]' : ''}>
                         <td className="px-3 py-2 text-[#888]">
